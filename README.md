@@ -1,5 +1,4 @@
 # web_scraper
 ToDo  
--make scraper work for 1 site  
--make scraper export report  
--make scraper into object methods for which I can paramaterize the websites as args
+-make scraper into object methods for which I can paramaterize the websites as args  
+-make url for each job part of the saved info for auto linking?  
