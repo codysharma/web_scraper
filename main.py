@@ -95,4 +95,130 @@ for site in website_list:
         
 driver.quit()
 
+html_content = f"""
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Job Search Results</title>
+      <style>
+        * {{
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }}
+        body {{
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+            background: #f0f2f5;
+            padding: 20px;
+        }}
+        .container {{
+            max-width: 1200px;
+            margin: 0 auto;
+        }}
+        header {{
+            background: white;
+            padding: 30px;
+            border-radius: 12px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+            margin-bottom: 20px;
+            text-align: center;
+        }}
+        h1 {{
+            color: #1a1a1a;
+            font-size: 32px;
+            margin-bottom: 10px;
+        }}
+        .timestamp {{
+            color: #666;
+            font-size: 14px;
+        }}
+        .company-section {{
+            background: white;
+            padding: 25px;
+            border-radius: 12px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+            margin-bottom: 20px;
+        }}
+        .company-header {{
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+            padding-bottom: 15px;
+            border-bottom: 2px solid #e0e0e0;
+        }}
+        .company-name {{
+            font-size: 24px;
+            font-weight: 600;
+            color: #2563eb;
+        }}
+        .job-count {{
+            background: #2563eb;
+            color: white;
+            padding: 5px 15px;
+            border-radius: 20px;
+            font-size: 14px;
+        }}
+        .job-item {{
+            padding: 15px;
+            margin: 10px 0;
+            background: #f8fafc;
+            border-left: 4px solid #2563eb;
+            border-radius: 4px;
+            transition: all 0.2s;
+        }}
+        .job-item:hover {{
+            background: #e0f2fe;
+            transform: translateX(5px);
+        }}
+        .view-link {{
+            display: inline-block;
+            margin-top: 15px;
+            padding: 8px 16px;
+            background: #2563eb;
+            color: white;
+            text-decoration: none;
+            border-radius: 6px;
+            font-size: 14px;
+            transition: background 0.2s;
+        }}
+        .view-link:hover {{
+            background: #1d4ed8;
+        }}
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>Job Search Results</h1>
+            <p class="timestamp">Generated on {datetime.now().strftime('%B %d, %Y at %I:%M %p')}</p>
+        </header>
+    
+"""
+for company, data in all_results.items():
+    job_count = len(data['jobs'])
 
+    html_content += f"""
+        <div class="company-header">
+            <h2 class="company-name">{company}</h2>
+        </div>
+"""
+    for job in data['jobs']:
+        html_content += f'<div class="job-item">{job}</div>\n'
+
+    html_content += f"""
+            <a href="{data['url']}" target="_blank" class="view-link">View All Openings →</a>
+        </div>
+"""
+html_content += """
+    </div>
+</body>
+</html>
+"""
+
+file_name = "job_results.html"
+with open(file_name, "w", encoding="utf-8") as f:
+    f.write(html_content)
+
+print("results exported")
+webbrowser.open(file_name)
