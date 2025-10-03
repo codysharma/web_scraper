@@ -10,7 +10,7 @@ from datetime import datetime
 
 # enter venv first: source env/Scripts/activate
 
-excluded_terms = ["senior", "lead", "manager", "principal", "staff", "director"]
+excluded_terms = ["senior", "lead", "manager", "principal", "staff", "director", "chief"]
 
 def get_wait(driver, timeout=3):
     return WebDriverWait(driver, timeout)
@@ -28,8 +28,8 @@ def parse_job_info(jobs):
         title = lines[0] if len(lines) > 0 else ""
         location = lines[1] if len(lines) > 1 else ""
         pay = lines[2] if len(lines) > 2 else ""
-        # if title == "Future Opportunities":
-        #     break
+        if "Future Opportunities" in title:
+            break
         # if "remote" in job.text.split("\n")[1].lower():
         #     location = "Remote"
         temp_jobs_list.append(f"{title} - {location} - {pay}")
@@ -66,6 +66,24 @@ def scrape_guild(driver):
     # client side rendering makes this not work.
     return
 
+def scrape_dps(driver):
+    wait = get_wait(driver)
+    job_tiles = wait.until(EC.presence_of_all_elements_located((By.CSS_SELECTOR, "ul span.job-tile__title")))
+    job_tiles = parse_job_info(job_tiles)
+    return job_tiles
+
+def scrape_dcsd(driver):
+    wait = get_wait(driver)
+    job_listings = wait.until(EC.presence_of_all_elements_located((By.CSS_SELECTOR, "ul h3")))
+    job_listings = parse_job_info(job_listings)
+    return job_listings
+
+def scrape_auroraps(driver):
+    wait = get_wait(driver)
+    job_tiles = wait.until(EC.presence_of_all_elements_located((By.CSS_SELECTOR, "ul span.job-tile__title")))
+    job_tiles = parse_job_info(job_tiles)
+    return job_tiles
+
 website_list = [
     # {"url": "https://www.deltamath.com/jobs/",
     #  "name": "DeltaMath",
@@ -80,11 +98,20 @@ website_list = [
     #  "name": "Pairin",
     #  "scraper": scrape_pairin,
     # },
+    # {"url": "https://dpsjobboard.dpsk12.org/en/sites/CX_1001/jobs?lastSelectedFacet=TITLES&mode=location&selectedTitlesFacet=30%3B46",
+    #  "name": "Denver Public Schools",
+    #  "scraper": scrape_dps}
+    # {"url": "https://dcsd.wd5.myworkdayjobs.com/en-US/DCSD/details/Systems-Engineer-II_Req-00077984-2?timeType=f5213912a3b710211de745c6879eb635&jobFamily=fef6e4a613001022976a2e0edb5b3686&jobFamily=fef6e4a613001022976a2c4522c13684",
+    #  "name": "DCSD",
+    #  "scraper": scrape_dcsd}
+    {"url": "https://fa-epop-saasfaprod1.fa.ocs.oraclecloud.com/hcmUI/CandidateExperience/en/sites/CX_1/jobs?lastSelectedFacet=CATEGORIES&selectedCategoriesFacet=300000024830845",
+     "name": "Aurora Schools",
+     "scraper": scrape_auroraps}
 
-# To add: Mastery prep, DCSD, DPS, AuroraPS, CoDeptEd?, ProximityLearning, Abre, Pearson, Powerschool, Skyward, Peardeck
+# To add: Mastery prep, AuroraPS, DSST, CoDeptEd?, ProximityLearning, Abre, Pearson, Powerschool, Skyward, Peardeck
 ]
 
-driver = webdriver.Firefox()
+driver = webdriver.Chrome()
 
 all_results = {}
 
@@ -227,9 +254,9 @@ html_content += """
 </html>
 """
 
-# file_name = "job_results.html"
-# with open(file_name, "w", encoding="utf-8") as f:
-#     f.write(html_content)
+file_name = "job_results.html"
+with open(file_name, "w", encoding="utf-8") as f:
+    f.write(html_content)
 
-# print("results exported")
-# webbrowser.open(file_name)
+print("results exported")
+webbrowser.open(file_name)
