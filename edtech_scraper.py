@@ -8,10 +8,14 @@ import time
 import webbrowser
 from datetime import datetime
 import os
+from object_methods import BaseMethods
 
 # enter venv first: source env/Scripts/activate
 
 excluded_terms = ["senior", "lead", "manager", "principal", "staff", "director", "chief", "teacher", "sr", "architect"]
+
+def click_element(locator, driver, time = 3):
+    WebDriverWait(driver, time).until(EC.element_to_be_clickable(locator)).click()
 
 def get_wait(driver, timeout=3):
     return WebDriverWait(driver, timeout)
@@ -109,49 +113,51 @@ def scrape_edtechjobsio(driver):
     return job_listings
 
 def scrape_jeffco_schools(driver):
+    locator_show_all_jobs = (By.ID, "HRS_SCH_WRK$0_row_0")
+    locator_show_more_jobs = (By.XPATH, "/html/body/form/div[2]/div[4]/div[2]/div/div/div/div/div[1]/section/div/div/div/div[1]/div/div[1]/div[2]/div/div/div[3]/fieldset/div[1]/span/a")
+    locator_show_tech_jobs = (By.ID, "PTS_FACETVALUES$1_row_11")
+    locator_results_list = (By.XPATH, "/html/body/form/div[2]/div[4]/div[2]/div/div/div/div/div[2]/section/div/div[2]/div[2]/div/div[1]/div/div[2]/div/div/div/ul/li")
+
     wait = get_wait(driver)
-    show_all_jobs = wait.until(EC.element_to_be_clickable((By.ID, "HRS_SCH_WRK$0_row_0")))
-    show_all_jobs.click()
-    show_more_jobs = wait.until(EC.element_to_be_clickable((By.XPATH, "/html/body/form/div[2]/div[4]/div[2]/div/div/div/div/div[1]/section/div/div/div/div[1]/div/div[1]/div[2]/div/div/div[3]/fieldset/div[1]/span/a")))
-    show_more_jobs.click()
-    show_tech_jobs = wait.until(EC.element_to_be_clickable((By.ID, "PTS_FACETVALUES$1_row_11")))
-    show_tech_jobs.click()
-    jobs_list = wait.until(EC.visibility_of_all_elements_located((By.XPATH, "/html/body/form/div[2]/div[4]/div[2]/div/div/div/div/div[2]/section/div/div[2]/div[2]/div/div[1]/div/div[2]/div/div/div/ul/li")))
+    click_element(locator_show_all_jobs, driver)
+    click_element(locator_show_more_jobs, driver)
+    click_element(locator_show_tech_jobs, driver)
+    jobs_list = wait.until(EC.visibility_of_all_elements_located(locator_results_list))
     jobs_list = parse_job_info(jobs_list)
     return jobs_list
 
 website_list = [
-    # {"url": "https://edtechjobs.io",
-    #   "name": "Edtechjobs.io",
-    #   "scraper": scrape_edtechjobsio},
-    # {"url": "https://www.deltamath.com/jobs/",
-    #  "name": "DeltaMath",
-    #  "scraper": scrape_deltamath},
-    # {"url": "https://jobs.cambiumlearning.com/?size=n_50_n",
-    # "name": "Cambium Learning Group",
-    # "scraper": scrape_cambium},
-    # {"url": "https://jobs.ashbyhq.com/magicschool/",
-    # "name": "Magic School",
-    # "scraper": scrape_magicschool},
-    # {"url": "https://www.pairin.com/about/careers/",
-    #  "name": "Pairin",
-    #  "scraper": scrape_pairin,
-    # },
+    {"url": "https://edtechjobs.io",
+      "name": "Edtechjobs.io",
+      "scraper": scrape_edtechjobsio},
+    {"url": "https://www.deltamath.com/jobs/",
+     "name": "DeltaMath",
+     "scraper": scrape_deltamath},
+    {"url": "https://jobs.cambiumlearning.com/?size=n_50_n",
+    "name": "Cambium Learning Group",
+    "scraper": scrape_cambium},
+    {"url": "https://jobs.ashbyhq.com/magicschool/",
+    "name": "Magic School",
+    "scraper": scrape_magicschool},
+    {"url": "https://www.pairin.com/about/careers/",
+     "name": "Pairin",
+     "scraper": scrape_pairin,
+    },
     {"url": "https://careers.jeffco.k12.co.us/psc/careers/EMPLOYEE/APPLICANT/c/HRS_HRAM_FL.HRS_CG_SEARCH_FL.GBL?FOCUS=Applicant&SiteId=3",
      "name": "JeffCo Schools", 
-     "scraper": scrape_jeffco_schools}
-    # {"url": "https://dpsjobboard.dpsk12.org/en/sites/CX_1001/jobs?lastSelectedFacet=TITLES&mode=location&selectedTitlesFacet=30%3B46",
-    #  "name": "Denver Public Schools",
-    #  "scraper": scrape_dps_aurora},
-    # {"url": "https://dcsd.wd5.myworkdayjobs.com/en-US/DCSD/details/Systems-Engineer-II_Req-00077984-2?timeType=f5213912a3b710211de745c6879eb635&jobFamily=fef6e4a613001022976a2e0edb5b3686&jobFamily=fef6e4a613001022976a2c4522c13684",
-    #  "name": "DCSD",
-    #  "scraper": scrape_public_schools_workday},
-    # {"url": "https://fa-epop-saasfaprod1.fa.ocs.oraclecloud.com/hcmUI/CandidateExperience/en/sites/CX_1/jobs?lastSelectedFacet=CATEGORIES&selectedCategoriesFacet=300000024830845",
-    #  "name": "Aurora Schools",
-    #  "scraper": scrape_dps_aurora},
-    # {"url": "https://dsstpublicschools.wd5.myworkdayjobs.com/DSST_Careers?jobFamily=a62b5af9bc7b100114066481a8960000&jobFamily=d969b57881e70103beb07a72d629da6b&jobFamily=d969b57881e70104991d7a72d629d86b",
-    #  "name": "DSST System",
-    #  "scraper": scrape_public_schools_workday},
+     "scraper": scrape_jeffco_schools},
+    {"url": "https://dpsjobboard.dpsk12.org/en/sites/CX_1001/jobs?lastSelectedFacet=TITLES&mode=location&selectedTitlesFacet=30%3B46",
+     "name": "Denver Public Schools",
+     "scraper": scrape_dps_aurora},
+    {"url": "https://dcsd.wd5.myworkdayjobs.com/en-US/DCSD/details/Systems-Engineer-II_Req-00077984-2?timeType=f5213912a3b710211de745c6879eb635&jobFamily=fef6e4a613001022976a2e0edb5b3686&jobFamily=fef6e4a613001022976a2c4522c13684",
+     "name": "DCSD",
+     "scraper": scrape_public_schools_workday},
+    {"url": "https://fa-epop-saasfaprod1.fa.ocs.oraclecloud.com/hcmUI/CandidateExperience/en/sites/CX_1/jobs?lastSelectedFacet=CATEGORIES&selectedCategoriesFacet=300000024830845",
+     "name": "Aurora Schools",
+     "scraper": scrape_dps_aurora},
+    {"url": "https://dsstpublicschools.wd5.myworkdayjobs.com/DSST_Careers?jobFamily=a62b5af9bc7b100114066481a8960000&jobFamily=d969b57881e70103beb07a72d629da6b&jobFamily=d969b57881e70104991d7a72d629d86b",
+     "name": "DSST System",
+     "scraper": scrape_public_schools_workday},
 
 # To add: Mastery prep, CoDeptEd?, ProximityLearning, Abre, Pearson, Powerschool, Skyward, Peardeck, Coursera, Edmentum, Savvas Learning Company, Newsela, Macmillan Learning, 
 ]
