@@ -21,6 +21,21 @@ def jobs_list_check(jobs_list, excluded_terms=excluded_terms):
         if not any(term in job.lower() for term in excluded_terms)
     ]
 
+def parse_job_info(jobs):
+    temp_jobs_list = []
+    for job in jobs:
+        lines = job.text.split("\n")
+        title = lines[0] if len(lines) > 0 else ""
+        location = lines[1] if len(lines) > 1 else ""
+        pay = lines[2] if len(lines) > 2 else ""
+        # if title == "Future Opportunities":
+        #     break
+        # if "remote" in job.text.split("\n")[1].lower():
+        #     location = "Remote"
+        temp_jobs_list.append(f"{title} - {location} - {pay}")
+    jobs_list_check(temp_jobs_list)
+    return temp_jobs_list
+
 def scrape_deltamath(driver):
     wait = get_wait(driver)
     roles_list_visible = wait.until(EC.presence_of_element_located((By.XPATH, "/html/body/div/div[1]/main/div/p")))
@@ -29,46 +44,45 @@ def scrape_deltamath(driver):
 
 def scrape_cambium(driver):
     wait = get_wait(driver)
-    temp_jobs_list = []
     jobs = wait.until(EC.presence_of_all_elements_located((By.XPATH, "/html/body/div[1]/div/div/div/div[2]/div/div[1]/div/ul/li")))
     time.sleep(1)
-    for job in jobs:
-        title = job.text.split("\n")[0]
-        location = job.text.split("\n")[1]
-        temp_jobs_list.append(f"{title} - {location}")
-    jobs_list_check(temp_jobs_list)
-     
+    temp_jobs_list = parse_job_info(jobs)     
     return temp_jobs_list
 
 def scrape_magicschool(driver):
     wait = get_wait(driver)
-    temp_jobs_list = []
     list_of_elements = wait.until(EC.presence_of_all_elements_located((By.CLASS_NAME, "ashby-job-posting-brief")))
-    for job in list_of_elements:
-        title = job.text.split("\n")[0]
-        if title == "Future Opportunities":
-            break
-        if "remote" in job.text.split("\n")[1].lower():
-            location = "Remote"
-        pay = job.text.split("\n")[2]
-        temp_jobs_list.append(f"{title} - {location} - {pay}")
-    jobs_list_check(temp_jobs_list)
+    temp_jobs_list = parse_job_info(list_of_elements)
+    return temp_jobs_list
+
+def scrape_pairin(driver):
+    wait = get_wait(driver)
+    element = wait.until(EC.presence_of_element_located((By.XPATH, "/html/body/div[1]/main/section/div[6]/h4")))
+    list_of_elements = driver.find_elements(By.CLASS_NAME, "tb-container")
+    if any("We Don't Have" in element.text for element in list_of_elements):
+        return None
+    # NOT WORKING
+    temp_jobs_list = parse_job_info(list_of_elements)
     return temp_jobs_list
 
 
 website_list = [
-    {"url": "https://www.deltamath.com/jobs/",
-     "name": "DeltaMath",
-     "scraper": scrape_deltamath},
-    {"url": "https://jobs.cambiumlearning.com/?size=n_50_n",
-    "name": "Cambium Learning Group",
-    "scraper": scrape_cambium},
-    {"url": "https://jobs.ashbyhq.com/magicschool/",
-    "name": "Magic School",
-    "scraper": scrape_magicschool}
+    # {"url": "https://www.deltamath.com/jobs/",
+    #  "name": "DeltaMath",
+    #  "scraper": scrape_deltamath},
+    # {"url": "https://jobs.cambiumlearning.com/?size=n_50_n",
+    # "name": "Cambium Learning Group",
+    # "scraper": scrape_cambium},
+    # {"url": "https://jobs.ashbyhq.com/magicschool/",
+    # "name": "Magic School",
+    # "scraper": scrape_magicschool},
+    {"url": "https://www.pairin.com/about/careers/",
+     "name": "Pairin",
+     "scraper": scrape_pairin,
+    }
 ]
 
-driver = webdriver.Chrome()
+driver = webdriver.Firefox()
 
 all_results = {}
 
@@ -76,15 +90,6 @@ for site in website_list:
     driver.get(site["url"])
     try:
         results = site["scraper"](driver)
-        # if type(results) == list:
-        #     print(f"{site['name']} results: ")
-        #     for job in results:
-        #         print(job)
-        # else:
-        #     print(f"{site['name']} results: {results}")
-
-        # print("-" * 10)
-
         all_results[site['name']] = {
             'jobs': results if isinstance(results, list) else [results],
             'url': site['url']
@@ -98,6 +103,7 @@ for site in website_list:
         
 driver.quit()
 
+# export to generated html file
 html_content = f"""
 <!DOCTYPE html>
 <html>
