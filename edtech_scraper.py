@@ -58,13 +58,13 @@ def scrape_magicschool(driver):
 def scrape_pairin(driver):
     wait = get_wait(driver)
     element = wait.until(EC.presence_of_element_located((By.XPATH, "/html/body/div[1]/main/section/div[6]/h4")))
-    list_of_elements = driver.find_elements(By.CLASS_NAME, "tb-container")
-    if any("We Don't Have" in element.text for element in list_of_elements):
-        return None
-    # NOT WORKING
-    temp_jobs_list = parse_job_info(list_of_elements)
-    return temp_jobs_list
+    list_of_elements = driver.find_element(By.XPATH, "/html/body/div[1]/main/section/div[6]/h4")
+    # NEED TO ADD SCRAPER FOR WHEN THERE IS A JOB TO TEST WITH
+    return list_of_elements.text
 
+def scrape_guild(driver):
+    # client side rendering makes this not work.
+    return
 
 website_list = [
     # {"url": "https://www.deltamath.com/jobs/",
@@ -76,10 +76,12 @@ website_list = [
     # {"url": "https://jobs.ashbyhq.com/magicschool/",
     # "name": "Magic School",
     # "scraper": scrape_magicschool},
-    {"url": "https://www.pairin.com/about/careers/",
-     "name": "Pairin",
-     "scraper": scrape_pairin,
-    }
+    # {"url": "https://www.pairin.com/about/careers/",
+    #  "name": "Pairin",
+    #  "scraper": scrape_pairin,
+    # },
+
+# To add: Mastery prep, DCSD, DPS, AuroraPS, CoDeptEd?, ProximityLearning, Abre, Pearson, Powerschool, Skyward, Peardeck
 ]
 
 driver = webdriver.Firefox()
@@ -225,9 +227,9 @@ html_content += """
 </html>
 """
 
-file_name = "job_results.html"
-with open(file_name, "w", encoding="utf-8") as f:
-    f.write(html_content)
+# file_name = "job_results.html"
+# with open(file_name, "w", encoding="utf-8") as f:
+#     f.write(html_content)
 
-print("results exported")
-webbrowser.open(file_name)
+# print("results exported")
+# webbrowser.open(file_name)
