@@ -10,7 +10,7 @@ from datetime import datetime
 
 # enter venv first: source env/Scripts/activate
 
-excluded_terms = ["senior", "lead", "manager", "principal", "staff", "director", "chief"]
+excluded_terms = ["senior", "lead", "manager", "principal", "staff", "director", "chief", "teacher"]
 
 def get_wait(driver, timeout=3):
     return WebDriverWait(driver, timeout)
@@ -84,31 +84,40 @@ def scrape_auroraps(driver):
     job_tiles = parse_job_info(job_tiles)
     return job_tiles
 
+def scrape_dsst(driver):
+    wait = get_wait(driver)
+    job_listings = wait.until(EC.presence_of_all_elements_located((By.CSS_SELECTOR, "ul h3")))
+    job_listings = parse_job_info(job_listings)
+    return job_listings
+
 website_list = [
-    # {"url": "https://www.deltamath.com/jobs/",
-    #  "name": "DeltaMath",
-    #  "scraper": scrape_deltamath},
-    # {"url": "https://jobs.cambiumlearning.com/?size=n_50_n",
-    # "name": "Cambium Learning Group",
-    # "scraper": scrape_cambium},
-    # {"url": "https://jobs.ashbyhq.com/magicschool/",
-    # "name": "Magic School",
-    # "scraper": scrape_magicschool},
-    # {"url": "https://www.pairin.com/about/careers/",
-    #  "name": "Pairin",
-    #  "scraper": scrape_pairin,
-    # },
-    # {"url": "https://dpsjobboard.dpsk12.org/en/sites/CX_1001/jobs?lastSelectedFacet=TITLES&mode=location&selectedTitlesFacet=30%3B46",
-    #  "name": "Denver Public Schools",
-    #  "scraper": scrape_dps}
-    # {"url": "https://dcsd.wd5.myworkdayjobs.com/en-US/DCSD/details/Systems-Engineer-II_Req-00077984-2?timeType=f5213912a3b710211de745c6879eb635&jobFamily=fef6e4a613001022976a2e0edb5b3686&jobFamily=fef6e4a613001022976a2c4522c13684",
-    #  "name": "DCSD",
-    #  "scraper": scrape_dcsd}
+    {"url": "https://www.deltamath.com/jobs/",
+     "name": "DeltaMath",
+     "scraper": scrape_deltamath},
+    {"url": "https://jobs.cambiumlearning.com/?size=n_50_n",
+    "name": "Cambium Learning Group",
+    "scraper": scrape_cambium},
+    {"url": "https://jobs.ashbyhq.com/magicschool/",
+    "name": "Magic School",
+    "scraper": scrape_magicschool},
+    {"url": "https://www.pairin.com/about/careers/",
+     "name": "Pairin",
+     "scraper": scrape_pairin,
+    },
+    {"url": "https://dpsjobboard.dpsk12.org/en/sites/CX_1001/jobs?lastSelectedFacet=TITLES&mode=location&selectedTitlesFacet=30%3B46",
+     "name": "Denver Public Schools",
+     "scraper": scrape_dps},
+    {"url": "https://dcsd.wd5.myworkdayjobs.com/en-US/DCSD/details/Systems-Engineer-II_Req-00077984-2?timeType=f5213912a3b710211de745c6879eb635&jobFamily=fef6e4a613001022976a2e0edb5b3686&jobFamily=fef6e4a613001022976a2c4522c13684",
+     "name": "DCSD",
+     "scraper": scrape_dcsd},
     {"url": "https://fa-epop-saasfaprod1.fa.ocs.oraclecloud.com/hcmUI/CandidateExperience/en/sites/CX_1/jobs?lastSelectedFacet=CATEGORIES&selectedCategoriesFacet=300000024830845",
      "name": "Aurora Schools",
-     "scraper": scrape_auroraps}
+     "scraper": scrape_auroraps},
+    {"url": "https://dsstpublicschools.wd5.myworkdayjobs.com/DSST_Careers?jobFamily=a62b5af9bc7b100114066481a8960000&jobFamily=d969b57881e70103beb07a72d629da6b&jobFamily=d969b57881e70104991d7a72d629d86b",
+     "name": "DSST System",
+     "scraper": scrape_dsst}
 
-# To add: Mastery prep, AuroraPS, DSST, CoDeptEd?, ProximityLearning, Abre, Pearson, Powerschool, Skyward, Peardeck
+# To add: Mastery prep, CoDeptEd?, ProximityLearning, Abre, Pearson, Powerschool, Skyward, Peardeck
 ]
 
 driver = webdriver.Chrome()
