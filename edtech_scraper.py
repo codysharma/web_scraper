@@ -7,10 +7,11 @@ from selenium.webdriver.support import expected_conditions as EC
 import time
 import webbrowser
 from datetime import datetime
+import os
 
 # enter venv first: source env/Scripts/activate
 
-excluded_terms = ["senior", "lead", "manager", "principal", "staff", "director", "chief", "teacher"]
+excluded_terms = ["senior", "lead", "manager", "principal", "staff", "director", "chief", "teacher", "sr", "architect"]
 
 def get_wait(driver, timeout=3):
     return WebDriverWait(driver, timeout)
@@ -33,6 +34,24 @@ def parse_job_info(jobs):
         # if "remote" in job.text.split("\n")[1].lower():
         #     location = "Remote"
         temp_jobs_list.append(f"{title} - {location} - {pay}")
+    jobs_list_check(temp_jobs_list)
+    return temp_jobs_list
+
+def parse_job_info_edtechjobsio(jobs):
+    temp_jobs_list = []
+    for job in jobs:
+        lines = job.text.split("\n")
+        title = lines[0] if len(lines) > 0 else ""
+        company = lines[1] if len(lines) > 1 else ""
+        location = lines[5] if len(lines) > 5 else ""
+        pay = ""
+        if len(lines) > 7 and "ago" in lines[7]:
+            posted = lines[7]
+        elif len(lines) > 7:
+            pay = lines[7]
+            posted = lines[9] if len(lines) > 9 else ""
+        if ("min" or "h" or "d" or "w" in posted) and ("Sales" not in title):
+            temp_jobs_list.append(f"{title} - {company} - {location} - {pay} - {posted}")
     jobs_list_check(temp_jobs_list)
     return temp_jobs_list
 
@@ -90,34 +109,54 @@ def scrape_dsst(driver):
     job_listings = parse_job_info(job_listings)
     return job_listings
 
-website_list = [
-    {"url": "https://www.deltamath.com/jobs/",
-     "name": "DeltaMath",
-     "scraper": scrape_deltamath},
-    {"url": "https://jobs.cambiumlearning.com/?size=n_50_n",
-    "name": "Cambium Learning Group",
-    "scraper": scrape_cambium},
-    {"url": "https://jobs.ashbyhq.com/magicschool/",
-    "name": "Magic School",
-    "scraper": scrape_magicschool},
-    {"url": "https://www.pairin.com/about/careers/",
-     "name": "Pairin",
-     "scraper": scrape_pairin,
-    },
-    {"url": "https://dpsjobboard.dpsk12.org/en/sites/CX_1001/jobs?lastSelectedFacet=TITLES&mode=location&selectedTitlesFacet=30%3B46",
-     "name": "Denver Public Schools",
-     "scraper": scrape_dps},
-    {"url": "https://dcsd.wd5.myworkdayjobs.com/en-US/DCSD/details/Systems-Engineer-II_Req-00077984-2?timeType=f5213912a3b710211de745c6879eb635&jobFamily=fef6e4a613001022976a2e0edb5b3686&jobFamily=fef6e4a613001022976a2c4522c13684",
-     "name": "DCSD",
-     "scraper": scrape_dcsd},
-    {"url": "https://fa-epop-saasfaprod1.fa.ocs.oraclecloud.com/hcmUI/CandidateExperience/en/sites/CX_1/jobs?lastSelectedFacet=CATEGORIES&selectedCategoriesFacet=300000024830845",
-     "name": "Aurora Schools",
-     "scraper": scrape_auroraps},
-    {"url": "https://dsstpublicschools.wd5.myworkdayjobs.com/DSST_Careers?jobFamily=a62b5af9bc7b100114066481a8960000&jobFamily=d969b57881e70103beb07a72d629da6b&jobFamily=d969b57881e70104991d7a72d629d86b",
-     "name": "DSST System",
-     "scraper": scrape_dsst}
+def scrape_edtechjobsio_curriculum(driver):
+    wait = get_wait(driver)
+    job_listings = wait.until(EC.presence_of_all_elements_located((By.CLASS_NAME, "job-listings-item")))
+    job_listings = parse_job_info_edtechjobsio(job_listings)
+    return job_listings
 
-# To add: Mastery prep, CoDeptEd?, ProximityLearning, Abre, Pearson, Powerschool, Skyward, Peardeck
+def scrape_edtechjobsio(driver):
+    wait = get_wait(driver)
+    driver.get("https://edtechjobs.io/jobs/entry-level")
+    job_listings = wait.until(EC.presence_of_all_elements_located((By.CLASS_NAME, "job-listings-item")))
+    job_listings = parse_job_info_edtechjobsio(job_listings)
+
+    driver.get("https://edtechjobs.io/jobs/curriculum")
+    job_listings_part2 = wait.until(EC.presence_of_all_elements_located((By.CLASS_NAME, "job-listings-item")))
+    job_listings += parse_job_info_edtechjobsio(job_listings_part2)
+    return job_listings
+
+website_list = [
+    {"url": "https://edtechjobs.io",
+      "name": "Edtechjobs.io",
+      "scraper": scrape_edtechjobsio},
+    # {"url": "https://www.deltamath.com/jobs/",
+    #  "name": "DeltaMath",
+    #  "scraper": scrape_deltamath},
+    # {"url": "https://jobs.cambiumlearning.com/?size=n_50_n",
+    # "name": "Cambium Learning Group",
+    # "scraper": scrape_cambium},
+    # {"url": "https://jobs.ashbyhq.com/magicschool/",
+    # "name": "Magic School",
+    # "scraper": scrape_magicschool},
+    # {"url": "https://www.pairin.com/about/careers/",
+    #  "name": "Pairin",
+    #  "scraper": scrape_pairin,
+    # },
+    # {"url": "https://dpsjobboard.dpsk12.org/en/sites/CX_1001/jobs?lastSelectedFacet=TITLES&mode=location&selectedTitlesFacet=30%3B46",
+    #  "name": "Denver Public Schools",
+    #  "scraper": scrape_dps},
+    # {"url": "https://dcsd.wd5.myworkdayjobs.com/en-US/DCSD/details/Systems-Engineer-II_Req-00077984-2?timeType=f5213912a3b710211de745c6879eb635&jobFamily=fef6e4a613001022976a2e0edb5b3686&jobFamily=fef6e4a613001022976a2c4522c13684",
+    #  "name": "DCSD",
+    #  "scraper": scrape_dcsd},
+    # {"url": "https://fa-epop-saasfaprod1.fa.ocs.oraclecloud.com/hcmUI/CandidateExperience/en/sites/CX_1/jobs?lastSelectedFacet=CATEGORIES&selectedCategoriesFacet=300000024830845",
+    #  "name": "Aurora Schools",
+    #  "scraper": scrape_auroraps},
+    # {"url": "https://dsstpublicschools.wd5.myworkdayjobs.com/DSST_Careers?jobFamily=a62b5af9bc7b100114066481a8960000&jobFamily=d969b57881e70103beb07a72d629da6b&jobFamily=d969b57881e70104991d7a72d629d86b",
+    #  "name": "DSST System",
+    #  "scraper": scrape_dsst},
+
+# To add: Mastery prep, CoDeptEd?, ProximityLearning, Abre, Pearson, Powerschool, Skyward, Peardeck, Coursera, Edmentum, Savvas Learning Company, Newsela, Macmillan Learning, 
 ]
 
 driver = webdriver.Chrome()
@@ -142,130 +181,23 @@ for site in website_list:
 driver.quit()
 
 # export to generated html file
-html_content = f"""
-<!DOCTYPE html>
-<html>
-<head>
-    <title>Job Search Results</title>
-      <style>
-        * {{
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
-        }}
-        body {{
-            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
-            background: #f0f2f5;
-            padding: 20px;
-        }}
-        .container {{
-            max-width: 1200px;
-            margin: 0 auto;
-        }}
-        header {{
-            background: white;
-            padding: 30px;
-            border-radius: 12px;
-            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
-            margin-bottom: 20px;
-            text-align: center;
-        }}
-        h1 {{
-            color: #1a1a1a;
-            font-size: 32px;
-            margin-bottom: 10px;
-        }}
-        .timestamp {{
-            color: #666;
-            font-size: 14px;
-        }}
-        .company-section {{
-            background: white;
-            padding: 25px;
-            border-radius: 12px;
-            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
-            margin-bottom: 20px;
-        }}
-        .company-header {{
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            margin-bottom: 20px;
-            padding-bottom: 15px;
-            border-bottom: 2px solid #e0e0e0;
-        }}
-        .company-name {{
-            font-size: 24px;
-            font-weight: 600;
-            color: #2563eb;
-        }}
-        .job-count {{
-            background: #2563eb;
-            color: white;
-            padding: 5px 15px;
-            border-radius: 20px;
-            font-size: 14px;
-        }}
-        .job-item {{
-            padding: 15px;
-            margin: 10px 0;
-            background: #f8fafc;
-            border-left: 4px solid #2563eb;
-            border-radius: 4px;
-            transition: all 0.2s;
-        }}
-        .job-item:hover {{
-            background: #e0f2fe;
-            transform: translateX(5px);
-        }}
-        .view-link {{
-            display: inline-block;
-            margin-top: 15px;
-            padding: 8px 16px;
-            background: #2563eb;
-            color: white;
-            text-decoration: none;
-            border-radius: 6px;
-            font-size: 14px;
-            transition: background 0.2s;
-        }}
-        .view-link:hover {{
-            background: #1d4ed8;
-        }}
-    </style>
-</head>
-<body>
-    <div class="container">
-        <header>
-            <h1>Job Search Results</h1>
-            <p class="timestamp">Generated on {datetime.now().strftime('%B %d, %Y at %I:%M %p')}</p>
-        </header>
-    
-"""
+with open("template.html", "r", encoding="utf-8") as f:
+    template = f.read()
+
+company_sections = ""
 for company, data in all_results.items():
-    job_count = len(data['jobs'])
-
-    html_content += f"""
-        <div class="company-header">
-            <h2 class="company-name">{company}</h2>
-        </div>
-"""
+    company_sections += f'<div class="company-section">\n'
+    company_sections += f'  <div class="company-header"><h2 class="company-name">{company}</h2></div>\n'
     for job in data['jobs']:
-        html_content += f'<div class="job-item">{job}</div>\n'
+        company_sections += f'  <div class="job-item">{job}</div>\n'
+    company_sections += f'  <a href="{data["url"]}" target="_blank" class="view-link">View All Openings →</a>\n'
+    company_sections += '</div>\n'
 
-    html_content += f"""
-            <a href="{data['url']}" target="_blank" class="view-link">View All Openings →</a>
-        </div>
-"""
-html_content += """
-    </div>
-</body>
-</html>
-"""
+html_content = template.replace("{{ timestamp }}", datetime.now().strftime("%B %d, %Y at %I:%M %p"))
+html_content = html_content.replace("{{ company_sections }}", company_sections)
 
-file_name = "job_results.html"
-with open(file_name, "w", encoding="utf-8") as f:
+output_file = os.path.join(os.getcwd(), "job_results.html")
+with open(output_file, "w", encoding="utf-8") as f:
     f.write(html_content)
 
-print("results exported")
-webbrowser.open(file_name)
+webbrowser.open(f"file://{output_file}")
