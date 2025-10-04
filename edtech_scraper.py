@@ -12,13 +12,23 @@ from object_methods import BaseMethods
 
 # enter venv first: source env/Scripts/activate
 
-excluded_terms = ["senior", "lead", "manager", "principal", "staff", "director", "chief", "teacher", "sr", "architect"]
+excluded_terms = ["senior", "lead", "manager", "principal", "staff", "director", "chief", "teacher", "sr", "architect", "head", "business intelligence", "therapist"]
 
+# General helpers---------------------------------------------
 def click_element(locator, driver, time = 3):
     WebDriverWait(driver, time).until(EC.element_to_be_clickable(locator)).click()
 
 def get_wait(driver, timeout=3):
     return WebDriverWait(driver, timeout)
+
+def check_for_button_next(driver, locator):
+    wait = get_wait(driver)
+    try:
+        wait.until(EC.element_to_be_clickable(locator)).click()
+        return True
+    except:
+        print("No next button present")
+        return False
 
 def jobs_list_check(jobs_list, excluded_terms=excluded_terms):
     jobs_list[:] = [
@@ -41,6 +51,45 @@ def parse_job_info(jobs):
     jobs_list_check(temp_jobs_list)
     return temp_jobs_list
 
+# Scraper functions and niche helpers---------------------------------
+def scrape_deltamath(driver):
+    wait = get_wait(driver)
+    roles_list_visible = wait.until(EC.presence_of_element_located((By.XPATH, "/html/body/div/div[1]/main/div/p")))
+    results = roles_list_visible.text
+    return results
+
+def scrape_cambium(driver):
+    wait = get_wait(driver)
+    jobs = wait.until(EC.presence_of_all_elements_located((By.XPATH, "/html/body/div[1]/div/div/div/div[2]/div/div[1]/div/ul/li")))
+    time.sleep(1)
+    return parse_job_info(jobs)   
+
+def scrape_magicschool(driver):
+    wait = get_wait(driver)
+    list_of_elements = wait.until(EC.presence_of_all_elements_located((By.CLASS_NAME, "ashby-job-posting-brief")))
+    return parse_job_info(list_of_elements)
+
+def scrape_pairin(driver):
+    wait = get_wait(driver)
+    element = wait.until(EC.presence_of_element_located((By.XPATH, "/html/body/div[1]/main/section/div[6]/h4")))
+    list_of_elements = driver.find_element(By.XPATH, "/html/body/div[1]/main/section/div[6]/h4")
+    # NEED TO ADD SCRAPER FOR WHEN THERE IS A JOB TO TEST WITH
+    return list_of_elements.text
+
+def scrape_guild(driver):
+    # client side rendering makes this not work.
+    return
+
+def scrape_dps_aurora(driver):
+    wait = get_wait(driver)
+    job_tiles = wait.until(EC.presence_of_all_elements_located((By.CSS_SELECTOR, "ul span.job-tile__title")))
+    return parse_job_info(job_tiles)
+
+def scrape_public_schools_workday(driver):
+    wait = get_wait(driver)
+    job_listings = wait.until(EC.presence_of_all_elements_located((By.CSS_SELECTOR, "ul h3")))
+    return parse_job_info(job_listings)
+
 def parse_job_info_edtechjobsio(jobs):
     temp_jobs_list = []
     for job in jobs:
@@ -59,57 +108,30 @@ def parse_job_info_edtechjobsio(jobs):
     jobs_list_check(temp_jobs_list)
     return temp_jobs_list
 
-def scrape_deltamath(driver):
+def collect_multipage_edtechio(driver, url, locator, job_listings):
     wait = get_wait(driver)
-    roles_list_visible = wait.until(EC.presence_of_element_located((By.XPATH, "/html/body/div/div[1]/main/div/p")))
-    results = roles_list_visible.text
-    return results
-
-def scrape_cambium(driver):
-    wait = get_wait(driver)
-    jobs = wait.until(EC.presence_of_all_elements_located((By.XPATH, "/html/body/div[1]/div/div/div/div[2]/div/div[1]/div/ul/li")))
-    time.sleep(1)
-    temp_jobs_list = parse_job_info(jobs)     
-    return temp_jobs_list
-
-def scrape_magicschool(driver):
-    wait = get_wait(driver)
-    list_of_elements = wait.until(EC.presence_of_all_elements_located((By.CLASS_NAME, "ashby-job-posting-brief")))
-    temp_jobs_list = parse_job_info(list_of_elements)
-    return temp_jobs_list
-
-def scrape_pairin(driver):
-    wait = get_wait(driver)
-    element = wait.until(EC.presence_of_element_located((By.XPATH, "/html/body/div[1]/main/section/div[6]/h4")))
-    list_of_elements = driver.find_element(By.XPATH, "/html/body/div[1]/main/section/div[6]/h4")
-    # NEED TO ADD SCRAPER FOR WHEN THERE IS A JOB TO TEST WITH
-    return list_of_elements.text
-
-def scrape_guild(driver):
-    # client side rendering makes this not work.
-    return
-
-def scrape_dps_aurora(driver):
-    wait = get_wait(driver)
-    job_tiles = wait.until(EC.presence_of_all_elements_located((By.CSS_SELECTOR, "ul span.job-tile__title")))
-    job_tiles = parse_job_info(job_tiles)
-    return job_tiles
-
-def scrape_public_schools_workday(driver):
-    wait = get_wait(driver)
-    job_listings = wait.until(EC.presence_of_all_elements_located((By.CSS_SELECTOR, "ul h3")))
-    job_listings = parse_job_info(job_listings)
+    driver.get(url)
+    temp_job_listings = wait.until(EC.presence_of_all_elements_located(locator))
+    job_listings += parse_job_info_edtechjobsio(temp_job_listings)
     return job_listings
 
 def scrape_edtechjobsio(driver):
-    wait = get_wait(driver)
-    driver.get("https://edtechjobs.io/jobs/entry-level")
-    job_listings = wait.until(EC.presence_of_all_elements_located((By.CLASS_NAME, "job-listings-item")))
-    job_listings = parse_job_info_edtechjobsio(job_listings)
+    url_entry_level = "https://edtechjobs.io/jobs/entry-level"
+    url_curriculum = "https://edtechjobs.io/jobs/curriculum"
+    url_software_search = "https://edtechjobs.io/jobs?filters%5B22579%5D=software&filters%5B22580%5D=&filters%5B22581%5D=&filters%5B22582%5D=7&filters%5B22583%5D%5Blocation%5D=&filters%5B22583%5D%5Blocation_id%5D=&filters%5B22583%5D%5Bsearch_radius%5D=&filters%5B22584%5D=1&order=relevance"
+    locator_next_button = (By.CSS_SELECTOR, "[aria-label='Next »']")
+    locator_job_list = (By.CLASS_NAME, "job-listings-item")
+    job_listings = []
 
-    driver.get("https://edtechjobs.io/jobs/curriculum")
-    job_listings_part2 = wait.until(EC.presence_of_all_elements_located((By.CLASS_NAME, "job-listings-item")))
-    job_listings += parse_job_info_edtechjobsio(job_listings_part2)
+    wait = get_wait(driver)
+
+    collect_multipage_edtechio(driver, url_entry_level, locator_job_list, job_listings)
+    collect_multipage_edtechio(driver, url_curriculum, locator_job_list, job_listings)
+    collect_multipage_edtechio(driver, url_software_search, locator_job_list, job_listings)
+    if check_for_button_next(driver, locator_next_button):
+        job_listings_software_2 = wait.until(EC.presence_of_all_elements_located(locator_job_list))
+        job_listings += parse_job_info_edtechjobsio(job_listings_software_2)
+
     return job_listings
 
 def scrape_jeffco_schools(driver):
@@ -123,41 +145,40 @@ def scrape_jeffco_schools(driver):
     click_element(locator_show_more_jobs, driver)
     click_element(locator_show_tech_jobs, driver)
     jobs_list = wait.until(EC.visibility_of_all_elements_located(locator_results_list))
-    jobs_list = parse_job_info(jobs_list)
-    return jobs_list
+    return parse_job_info(jobs_list)
 
 website_list = [
-    {"url": "https://edtechjobs.io",
-      "name": "Edtechjobs.io",
-      "scraper": scrape_edtechjobsio},
-    {"url": "https://www.deltamath.com/jobs/",
-     "name": "DeltaMath",
-     "scraper": scrape_deltamath},
-    {"url": "https://jobs.cambiumlearning.com/?size=n_50_n",
-    "name": "Cambium Learning Group",
-    "scraper": scrape_cambium},
+    # {"url": "https://edtechjobs.io",
+    #   "name": "Edtechjobs.io",
+    #   "scraper": scrape_edtechjobsio},
+    # {"url": "https://www.deltamath.com/jobs/",
+    #  "name": "DeltaMath",
+    #  "scraper": scrape_deltamath},
+    # {"url": "https://jobs.cambiumlearning.com/?size=n_50_n",
+    # "name": "Cambium Learning Group",
+    # "scraper": scrape_cambium},
     {"url": "https://jobs.ashbyhq.com/magicschool/",
     "name": "Magic School",
     "scraper": scrape_magicschool},
-    {"url": "https://www.pairin.com/about/careers/",
-     "name": "Pairin",
-     "scraper": scrape_pairin,
-    },
-    {"url": "https://careers.jeffco.k12.co.us/psc/careers/EMPLOYEE/APPLICANT/c/HRS_HRAM_FL.HRS_CG_SEARCH_FL.GBL?FOCUS=Applicant&SiteId=3",
-     "name": "JeffCo Schools", 
-     "scraper": scrape_jeffco_schools},
-    {"url": "https://dpsjobboard.dpsk12.org/en/sites/CX_1001/jobs?lastSelectedFacet=TITLES&mode=location&selectedTitlesFacet=30%3B46",
-     "name": "Denver Public Schools",
-     "scraper": scrape_dps_aurora},
-    {"url": "https://dcsd.wd5.myworkdayjobs.com/en-US/DCSD/details/Systems-Engineer-II_Req-00077984-2?timeType=f5213912a3b710211de745c6879eb635&jobFamily=fef6e4a613001022976a2e0edb5b3686&jobFamily=fef6e4a613001022976a2c4522c13684",
-     "name": "DCSD",
-     "scraper": scrape_public_schools_workday},
-    {"url": "https://fa-epop-saasfaprod1.fa.ocs.oraclecloud.com/hcmUI/CandidateExperience/en/sites/CX_1/jobs?lastSelectedFacet=CATEGORIES&selectedCategoriesFacet=300000024830845",
-     "name": "Aurora Schools",
-     "scraper": scrape_dps_aurora},
-    {"url": "https://dsstpublicschools.wd5.myworkdayjobs.com/DSST_Careers?jobFamily=a62b5af9bc7b100114066481a8960000&jobFamily=d969b57881e70103beb07a72d629da6b&jobFamily=d969b57881e70104991d7a72d629d86b",
-     "name": "DSST System",
-     "scraper": scrape_public_schools_workday},
+    # {"url": "https://www.pairin.com/about/careers/",
+    #  "name": "Pairin",
+    #  "scraper": scrape_pairin,
+    # },
+    # {"url": "https://careers.jeffco.k12.co.us/psc/careers/EMPLOYEE/APPLICANT/c/HRS_HRAM_FL.HRS_CG_SEARCH_FL.GBL?FOCUS=Applicant&SiteId=3",
+    #  "name": "JeffCo Schools", 
+    #  "scraper": scrape_jeffco_schools},
+    # {"url": "https://dpsjobboard.dpsk12.org/en/sites/CX_1001/jobs?lastSelectedFacet=TITLES&mode=location&selectedTitlesFacet=30%3B46",
+    #  "name": "Denver Public Schools",
+    #  "scraper": scrape_dps_aurora},
+    # {"url": "https://dcsd.wd5.myworkdayjobs.com/en-US/DCSD/details/Systems-Engineer-II_Req-00077984-2?timeType=f5213912a3b710211de745c6879eb635&jobFamily=fef6e4a613001022976a2e0edb5b3686&jobFamily=fef6e4a613001022976a2c4522c13684",
+    #  "name": "DCSD",
+    #  "scraper": scrape_public_schools_workday},
+    # {"url": "https://fa-epop-saasfaprod1.fa.ocs.oraclecloud.com/hcmUI/CandidateExperience/en/sites/CX_1/jobs?lastSelectedFacet=CATEGORIES&selectedCategoriesFacet=300000024830845",
+    #  "name": "Aurora Schools",
+    #  "scraper": scrape_dps_aurora},
+    # {"url": "https://dsstpublicschools.wd5.myworkdayjobs.com/DSST_Careers?jobFamily=a62b5af9bc7b100114066481a8960000&jobFamily=d969b57881e70103beb07a72d629da6b&jobFamily=d969b57881e70104991d7a72d629d86b",
+    #  "name": "DSST System",
+    #  "scraper": scrape_public_schools_workday},
 
 # To add: Mastery prep, CoDeptEd?, ProximityLearning, Abre, Pearson, Powerschool, Skyward, Peardeck, Coursera, Edmentum, Savvas Learning Company, Newsela, Macmillan Learning, 
 ]
@@ -184,7 +205,9 @@ for site in website_list:
 driver.quit()
 
 # export to generated html file
-with open("template.html", "r", encoding="utf-8") as f:
+results_dir = os.path.join(os.getcwd(), "results")
+template_file = os.path.join(results_dir, "template.html")
+with open(template_file, "r", encoding="utf-8") as f:
     template = f.read()
 
 company_sections = ""
@@ -199,7 +222,7 @@ for company, data in all_results.items():
 html_content = template.replace("{{ timestamp }}", datetime.now().strftime("%B %d, %Y at %I:%M %p"))
 html_content = html_content.replace("{{ company_sections }}", company_sections)
 
-output_file = os.path.join(os.getcwd(), "job_results.html")
+output_file = os.path.join(results_dir, "job_results.html")
 with open(output_file, "w", encoding="utf-8") as f:
     f.write(html_content)
 
