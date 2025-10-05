@@ -12,7 +12,7 @@ from object_methods import BaseMethods
 
 # enter venv first: source env/Scripts/activate
 
-excluded_terms = ["senior", "lead", "manager", "principal", "staff", "director", "chief", "teacher", "sr", "architect", "head", "business intelligence", "therapist"]
+excluded_terms = ["senior", "lead", "manager", "principal", "staff", "director", "chief", "teacher", "sr", "architect", "head", "business intelligence", "therapist", "director"]
 
 # General helpers---------------------------------------------
 def click_element(locator, driver, time = 3):
@@ -50,6 +50,11 @@ def parse_job_info(jobs):
         temp_jobs_list.append(f"{title} - {location} - {pay}")
     jobs_list_check(temp_jobs_list)
     return temp_jobs_list
+
+def check_location(location):
+    if ("remote" or "denver") not in location.lower():
+        return False
+    return True
 
 # Scraper functions and niche helpers---------------------------------
 def scrape_deltamath(driver):
@@ -147,7 +152,49 @@ def scrape_jeffco_schools(driver):
     jobs_list = wait.until(EC.visibility_of_all_elements_located(locator_results_list))
     return parse_job_info(jobs_list)
 
+def scrape_coloradodoe(driver):
+    locator = (By.CLASS_NAME, "job-table-title")
+    wait = get_wait(driver)
+    job_listings = wait.until(EC.presence_of_all_elements_located(locator))
+    temp_job_list = []
+    for job in job_listings:
+        if "Job Title" not in job.text :         
+            temp_job_list.append(job.text)
+    return temp_job_list
+
+def scrape_proximity_learning(driver):
+    locator = (By.CSS_SELECTOR, "ul li")
+    wait = get_wait(driver)
+    temp_jobs_list = []
+    for job in wait.until(EC.presence_of_all_elements_located(locator)):
+        lines = job.text.split("\n")
+        title = lines[0] if len(lines) > 0 else ""
+        location = lines[2] if len(lines) > 2 else ""
+        if check_location(location) == False:
+            break
+        temp_jobs_list.append(f"{title} - {location}")
+    return temp_jobs_list
+
+def scrape_abre(driver):
+    locator = (By.XPATH, "/html/body/main/section[2]/div[2]/div/ul/li")
+    wait = get_wait(driver)
+    temp_jobs_list = []
+    for job in wait.until(EC.presence_of_all_elements_located(locator)):
+        lines = job.text.split("\n")
+        title = lines[0] if len(lines) > 0 else ""
+        temp_jobs_list.append(f"{title}")
+    return temp_jobs_list
+
 website_list = [
+    # {"url": "https://jobs.abre.com/",
+    #  "name": "Abre",
+    #  "scraper": scrape_abre},
+    # {"url": "https://proxlearn.bamboohr.com/careers",
+    #  "name": "Proximity Learning",
+    #  "scraper": scrape_proximity_learning}
+    # {"url": "https://www.governmentjobs.com/careers/colorado?location[0]=denver%20metro&department[0]=Department%20of%20Education&sort=PositionTitle%7CAscending",
+    #  "name": "Colorado Dept of Ed",
+    #  "scraper": scrape_coloradodoe},
     # {"url": "https://edtechjobs.io",
     #   "name": "Edtechjobs.io",
     #   "scraper": scrape_edtechjobsio},
@@ -157,9 +204,9 @@ website_list = [
     # {"url": "https://jobs.cambiumlearning.com/?size=n_50_n",
     # "name": "Cambium Learning Group",
     # "scraper": scrape_cambium},
-    {"url": "https://jobs.ashbyhq.com/magicschool/",
-    "name": "Magic School",
-    "scraper": scrape_magicschool},
+    # {"url": "https://jobs.ashbyhq.com/magicschool/",
+    # "name": "Magic School",
+    # "scraper": scrape_magicschool},
     # {"url": "https://www.pairin.com/about/careers/",
     #  "name": "Pairin",
     #  "scraper": scrape_pairin,
@@ -180,7 +227,7 @@ website_list = [
     #  "name": "DSST System",
     #  "scraper": scrape_public_schools_workday},
 
-# To add: Mastery prep, CoDeptEd?, ProximityLearning, Abre, Pearson, Powerschool, Skyward, Peardeck, Coursera, Edmentum, Savvas Learning Company, Newsela, Macmillan Learning, 
+# To add: Mastery prep, Abre, Pearson, Powerschool, Skyward, Peardeck, Coursera, Edmentum, Savvas Learning Company, Newsela, Macmillan Learning, 
 ]
 
 driver = webdriver.Chrome()

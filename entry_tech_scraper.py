@@ -3,3 +3,5 @@ job_titles =[
 ]
 
 # scan the description for years of experience to cut out some
+
+# make this one object methods
