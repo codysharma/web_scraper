@@ -12,7 +12,7 @@ from object_methods import BaseMethods
 
 # enter venv first: source env/Scripts/activate
 
-excluded_terms = ["senior", "lead", "manager", "principal", "staff", "director", "chief", "teacher", "sr", "architect", "head", "business intelligence", "therapist", "director"]
+excluded_terms = ["senior", "lead", "manager", "principal", "staff", "director", "chief", "teacher", "sr", "architect", "head", "business intelligence", "therapist", "director", "president"]
 
 # General helpers---------------------------------------------
 def click_element(locator, driver, time = 3):
@@ -51,8 +51,12 @@ def parse_job_info(jobs):
     jobs_list_check(temp_jobs_list)
     return temp_jobs_list
 
-def check_location(location):
-    if ("remote" or "denver") not in location.lower():
+def check_location(location, title):
+    if ("remote" or "denver" or "co" or "colorado") not in location.lower():
+        return False
+    if ("india") in location.lower():
+        return False
+    if ("telugu") in title.lower():
         return False
     return True
 
@@ -147,8 +151,12 @@ def scrape_jeffco_schools(driver):
 
     wait = get_wait(driver)
     click_element(locator_show_all_jobs, driver)
+    time.sleep(3)
     click_element(locator_show_more_jobs, driver)
+    time.sleep(3)
     click_element(locator_show_tech_jobs, driver)
+    time.sleep(3)
+
     jobs_list = wait.until(EC.visibility_of_all_elements_located(locator_results_list))
     return parse_job_info(jobs_list)
 
@@ -170,7 +178,7 @@ def scrape_proximity_learning(driver):
         lines = job.text.split("\n")
         title = lines[0] if len(lines) > 0 else ""
         location = lines[2] if len(lines) > 2 else ""
-        if check_location(location) == False:
+        if check_location(location, title) == False:
             break
         temp_jobs_list.append(f"{title} - {location}")
     return temp_jobs_list
@@ -185,13 +193,42 @@ def scrape_abre(driver):
         temp_jobs_list.append(f"{title}")
     return temp_jobs_list
 
+def parse_khan_academy(driver, jobs_list):
+    temp_jobs_list = []
+    for job in jobs_list:
+        lines = job.text.split("\n")
+        title = lines[0] if len(lines) > 0 else ""
+        location = lines[1] if len(lines) > 1 else ""
+        if (not check_location(location, title)) or ("talent community" in title.lower()):
+            continue
+        temp_jobs_list.append(f"{title} - {location}")
+    jobs_list_check(temp_jobs_list)
+    return temp_jobs_list
+
+def scrape_khan(driver):
+    locator = (By.CLASS_NAME, "_12k2rikw")
+    
+    wait = get_wait(driver)
+    jobs_list =  wait.until(EC.presence_of_all_elements_located(locator))
+    return parse_khan_academy(driver, jobs_list)
+
+def scrape_powerschool(driver):
+    return "Have to check their <a href='https://www.powerschool.com/company/careers/?location=US--Remote'>website</a>"
+
+
 website_list = [
+    # {"url": "https://www.powerschool.com/company/careers/?location=US--Remote",
+    #  "name": "Powerschool",
+    #  "scraper": scrape_powerschool},
+    # {"url": "https://www.khanacademy.org/careers#openings", 
+    #  "name": "Khan Academy",
+    #  "scraper": scrape_khan},
     # {"url": "https://jobs.abre.com/",
     #  "name": "Abre",
     #  "scraper": scrape_abre},
     # {"url": "https://proxlearn.bamboohr.com/careers",
     #  "name": "Proximity Learning",
-    #  "scraper": scrape_proximity_learning}
+    #  "scraper": scrape_proximity_learning},
     # {"url": "https://www.governmentjobs.com/careers/colorado?location[0]=denver%20metro&department[0]=Department%20of%20Education&sort=PositionTitle%7CAscending",
     #  "name": "Colorado Dept of Ed",
     #  "scraper": scrape_coloradodoe},
@@ -211,9 +248,9 @@ website_list = [
     #  "name": "Pairin",
     #  "scraper": scrape_pairin,
     # },
-    # {"url": "https://careers.jeffco.k12.co.us/psc/careers/EMPLOYEE/APPLICANT/c/HRS_HRAM_FL.HRS_CG_SEARCH_FL.GBL?FOCUS=Applicant&SiteId=3",
-    #  "name": "JeffCo Schools", 
-    #  "scraper": scrape_jeffco_schools},
+    {"url": "https://careers.jeffco.k12.co.us/psc/careers/EMPLOYEE/APPLICANT/c/HRS_HRAM_FL.HRS_CG_SEARCH_FL.GBL?FOCUS=Applicant&SiteId=3",
+     "name": "JeffCo Schools", 
+     "scraper": scrape_jeffco_schools},
     # {"url": "https://dpsjobboard.dpsk12.org/en/sites/CX_1001/jobs?lastSelectedFacet=TITLES&mode=location&selectedTitlesFacet=30%3B46",
     #  "name": "Denver Public Schools",
     #  "scraper": scrape_dps_aurora},
@@ -227,10 +264,13 @@ website_list = [
     #  "name": "DSST System",
     #  "scraper": scrape_public_schools_workday},
 
-# To add: Mastery prep, Abre, Pearson, Powerschool, Skyward, Peardeck, Coursera, Edmentum, Savvas Learning Company, Newsela, Macmillan Learning, 
+# To add: Mastery prep, Pearson, Powerschool, Skyward, Peardeck, Coursera, Edmentum, Savvas Learning Company, Newsela, Macmillan Learning, 
 ]
 
-driver = webdriver.Chrome()
+chrome_options = webdriver.ChromeOptions()
+prefs = {"profile.managed_default_content_settings.images": 2}
+chrome_options.add_experimental_option("prefs", prefs)
+driver = webdriver.Chrome(options=chrome_options)
 
 all_results = {}
 
