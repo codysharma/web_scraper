@@ -256,12 +256,12 @@ def scrape_coursera(driver):
         title = job.text.strip()
         if title:
             temp_jobs_list.append(title)
-    return parse_job_info(temp_jobs_list)
+    return jobs_list_check(temp_jobs_list)
 
 website_list = [
-    {"url": "https://careers.coursera.com/jobs/search?page=1&query=&department_uids%5B%5D=0b370cc4e5d8b1fba08d06720b9850aa&country_codes%5B%5D=US",
-     "name": "Coursera",
-     "scraper": scrape_coursera},
+    # {"url": "https://careers.coursera.com/jobs/search?page=1&query=&department_uids%5B%5D=0b370cc4e5d8b1fba08d06720b9850aa&country_codes%5B%5D=US",
+    #  "name": "Coursera",
+    #  "scraper": scrape_coursera},
     # {"url": "https://job-boards.greenhouse.io/goguardian",
     #  "name": "GoGuardian/Peardeck",
     #  "scraper": scrape_goguardian},
