@@ -52,7 +52,10 @@ def parse_job_info(jobs):
     return temp_jobs_list
 
 def check_location(location, title):
-    if ("remote" or "denver" or "co" or "colorado") not in location.lower():
+    acceptable_locations =[
+        "remote" , "denver" , "co" , "col,ado" , "united states" , "usa" , "us"
+    ]
+    if not any(term in location.lower() for term in acceptable_locations):
         return False
     if ("india") in location.lower():
         return False
@@ -146,16 +149,16 @@ def scrape_edtechjobsio(driver):
 def scrape_jeffco_schools(driver):
     locator_show_all_jobs = (By.ID, "HRS_SCH_WRK$0_row_0")
     locator_show_more_jobs = (By.XPATH, "/html/body/form/div[2]/div[4]/div[2]/div/div/div/div/div[1]/section/div/div/div/div[1]/div/div[1]/div[2]/div/div/div[3]/fieldset/div[1]/span/a")
-    locator_show_tech_jobs = (By.ID, "PTS_FACETVALUES$1_row_11")
+    locator_show_tech_jobs = (By.ID, "win0divPTS_SELECTctrl$15")
     locator_results_list = (By.XPATH, "/html/body/form/div[2]/div[4]/div[2]/div/div/div/div/div[2]/section/div/div[2]/div[2]/div/div[1]/div/div[2]/div/div/div/ul/li")
 
     wait = get_wait(driver)
     click_element(locator_show_all_jobs, driver)
-    time.sleep(3)
+    # time.sleep(6)
     click_element(locator_show_more_jobs, driver)
-    time.sleep(3)
+    # time.sleep(6)
     click_element(locator_show_tech_jobs, driver)
-    time.sleep(3)
+    # time.sleep(6)
 
     jobs_list = wait.until(EC.visibility_of_all_elements_located(locator_results_list))
     return parse_job_info(jobs_list)
@@ -179,7 +182,7 @@ def scrape_proximity_learning(driver):
         title = lines[0] if len(lines) > 0 else ""
         location = lines[2] if len(lines) > 2 else ""
         if check_location(location, title) == False:
-            break
+            continue
         temp_jobs_list.append(f"{title} - {location}")
     return temp_jobs_list
 
@@ -193,7 +196,7 @@ def scrape_abre(driver):
         temp_jobs_list.append(f"{title}")
     return temp_jobs_list
 
-def parse_khan_academy(driver, jobs_list):
+def parse_khan_academy(jobs_list):
     temp_jobs_list = []
     for job in jobs_list:
         lines = job.text.split("\n")
@@ -207,16 +210,67 @@ def parse_khan_academy(driver, jobs_list):
 
 def scrape_khan(driver):
     locator = (By.CLASS_NAME, "_12k2rikw")
-    
     wait = get_wait(driver)
     jobs_list =  wait.until(EC.presence_of_all_elements_located(locator))
-    return parse_khan_academy(driver, jobs_list)
+    return parse_khan_academy(jobs_list)
 
 def scrape_powerschool(driver):
-    return "Have to check their <a href='https://www.powerschool.com/company/careers/?location=US--Remote'>website</a>"
+    return "Have to check their <a href='https://www.powerschool.com/company/careers/?location=US--Remote' target=_blank >website</a>"
 
+def scrape_pearson(driver):
+    modal_locator = (By.ID, "onetrust-accept-btn-handler")
+    # modal that is a problem to click
+    return "Have to check their <a href='https://pearson.jobs/locations/usa/schedule/full-time/workplace-type/remote/jobs/' target=_blank >website</a>"
+
+def scrape_skyward(driver):
+    locator = (By.CLASS_NAME, "opening-jobs")
+    wait = get_wait(driver)
+    jobs_list = wait.until(EC.presence_of_all_elements_located(locator))
+    return parse_job_info(jobs_list)
+
+def parse_goguardian(jobs_list):
+    temp_jobs_list = []
+    for job in jobs_list:
+        lines = job.split("\n")
+        title = lines[0] if len(lines) > 0 else ""
+        location = lines[1] if len(lines) > 1 else ""
+        if check_location(location, title) == False:
+            continue
+        temp_jobs_list.append(f"{title} - {location}")
+    jobs_list_check(temp_jobs_list)
+    return temp_jobs_list
+
+def scrape_goguardian(driver):
+    locator = (By.CSS_SELECTOR, "tbody .cell")
+    wait = get_wait(driver)
+    jobs_list = wait.until(EC.presence_of_all_elements_located(locator))
+    jobs_texts = (job.text for job in jobs_list)
+    return parse_goguardian(jobs_texts)
+
+def scrape_coursera(driver):
+    title_locator = (By.CSS_SELECTOR, ".job-search-results-title a")
+    wait = get_wait(driver)
+    jobs_list = wait.until(EC.presence_of_all_elements_located(title_locator))
+    temp_jobs_list = []
+    for job in jobs_list:
+        title = job.text.strip()
+        if title:
+            temp_jobs_list.append(title)
+    return parse_job_info(temp_jobs_list)
 
 website_list = [
+    {"url": "https://careers.coursera.com/jobs/search?page=1&query=&department_uids%5B%5D=0b370cc4e5d8b1fba08d06720b9850aa&country_codes%5B%5D=US",
+     "name": "Coursera",
+     "scraper": scrape_coursera},
+    # {"url": "https://job-boards.greenhouse.io/goguardian",
+    #  "name": "GoGuardian/Peardeck",
+    #  "scraper": scrape_goguardian},
+    # {"url": "https://careers.smartrecruiters.com/Skyward1",
+    #  "name": "Skyward", 
+    #  "scraper": scrape_skyward},
+    # {"url": "https://pearson.jobs/locations/usa/schedule/full-time/workplace-type/remote/jobs/",
+    #  "name": "Pearson",
+    #  "scraper": scrape_pearson},
     # {"url": "https://www.powerschool.com/company/careers/?location=US--Remote",
     #  "name": "Powerschool",
     #  "scraper": scrape_powerschool},
@@ -248,9 +302,9 @@ website_list = [
     #  "name": "Pairin",
     #  "scraper": scrape_pairin,
     # },
-    {"url": "https://careers.jeffco.k12.co.us/psc/careers/EMPLOYEE/APPLICANT/c/HRS_HRAM_FL.HRS_CG_SEARCH_FL.GBL?FOCUS=Applicant&SiteId=3",
-     "name": "JeffCo Schools", 
-     "scraper": scrape_jeffco_schools},
+    # {"url": "https://careers.jeffco.k12.co.us/psc/careers/EMPLOYEE/APPLICANT/c/HRS_HRAM_FL.HRS_CG_SEARCH_FL.GBL?FOCUS=Applicant&SiteId=3",
+    #  "name": "JeffCo Schools", 
+    #  "scraper": scrape_jeffco_schools},
     # {"url": "https://dpsjobboard.dpsk12.org/en/sites/CX_1001/jobs?lastSelectedFacet=TITLES&mode=location&selectedTitlesFacet=30%3B46",
     #  "name": "Denver Public Schools",
     #  "scraper": scrape_dps_aurora},
@@ -264,13 +318,15 @@ website_list = [
     #  "name": "DSST System",
     #  "scraper": scrape_public_schools_workday},
 
-# To add: Mastery prep, Pearson, Powerschool, Skyward, Peardeck, Coursera, Edmentum, Savvas Learning Company, Newsela, Macmillan Learning, 
+# To add: Mastery prep, Coursera, Edmentum, Savvas Learning Company, Newsela, Macmillan Learning, 
 ]
 
-chrome_options = webdriver.ChromeOptions()
-prefs = {"profile.managed_default_content_settings.images": 2}
-chrome_options.add_experimental_option("prefs", prefs)
-driver = webdriver.Chrome(options=chrome_options)
+# chrome_options = webdriver.ChromeOptions()
+# prefs = {"profile.managed_default_content_settings.images": 2}
+# chrome_options.add_experimental_option("prefs", prefs)
+# driver = webdriver.Chrome(options=chrome_options)
+
+driver = webdriver.Chrome()
 
 all_results = {}
 
