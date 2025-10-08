@@ -12,7 +12,7 @@ from object_methods import BaseMethods
 
 # enter venv first: source env/Scripts/activate
 
-excluded_terms = ["senior", "lead", "manager", "principal", "staff", "director", "chief", "teacher", "sr", "architect", "head", "business intelligence", "therapist", "director", "president"]
+excluded_terms = ["senior", "lead", "manager", "principal", "staff", "director", "chief", "teacher", "sr", "architect", "head", "business intelligence", "therapist", "director", "president", "sales"]
 
 # General helpers---------------------------------------------
 def click_element(locator, driver, time = 3):
@@ -62,6 +62,14 @@ def check_location(location, title):
     if ("telugu") in title.lower():
         return False
     return True
+
+
+def scrape_greenouse(driver):
+    locator = (By.CLASS_NAME, "job-post")
+    wait = get_wait(driver)
+    jobs_list = wait.until(EC.presence_of_all_elements_located(locator))
+    jobs_texts = (job.text for job in jobs_list)
+    return parse_goguardian(jobs_texts)
 
 # Scraper functions and niche helpers---------------------------------
 def scrape_deltamath(driver):
@@ -241,6 +249,7 @@ def parse_goguardian(jobs_list):
     return temp_jobs_list
 
 def scrape_goguardian(driver):
+    # greenhouse
     locator = (By.CSS_SELECTOR, "tbody .cell")
     wait = get_wait(driver)
     jobs_list = wait.until(EC.presence_of_all_elements_located(locator))
@@ -258,7 +267,47 @@ def scrape_coursera(driver):
             temp_jobs_list.append(title)
     return jobs_list_check(temp_jobs_list)
 
+def scrape_edmentum(driver):
+    return scrape_greenouse(driver)
+
+def parse_savvas(jobs_list):
+    temp_job_list = []
+    for job in jobs_list:
+        lines = job.text.split("\n")
+        title = lines[0] if len(lines) > 0 else ""
+        location = lines[1] if len(lines) > 1 else ""
+        if check_location(location, title) == False:
+            continue
+        temp_job_list.append(f"{title} - {location}")
+    jobs_list_check(temp_job_list)
+    return temp_job_list
+
+def scrape_savvas(driver):
+    locator = (By.CSS_SELECTOR, ".ant-list-items li")
+    wait = get_wait(driver)
+    jobs_list = wait.until(EC.presence_of_all_elements_located(locator))
+    return parse_savvas(jobs_list)
+
+def scrape_newsela(driver):
+    return scrape_greenouse(driver)
+
+def scrape_macmillon(driver):
+
+    return None
+
 website_list = [
+    {"url": "https://recruiting.ultipro.com/HOL1002HPHM/JobBoard/be27b89b-3cb9-491f-a1b0-42f8b077a9dd/?q=&o=postedDateDesc&w=&wc=&we=&wpst=&f4=P3uiKTJuwU-EMui9Ye7png&f5=Z6VUAqvr8UOWHe2Wz3tZ7w",
+     "name": "Macmillan Learning",
+     "scraper": scrape_macmillan},
+    # {"url": "https://job-boards.greenhouse.io/newsela",
+    #  "name": "Newsela",
+    #  "scraper": scrape_newsela},
+    # {"url": "https://jobs.dayforcehcm.com/en-US/k12l/CANDIDATEPORTAL",
+    #  "name": "Savvas",
+    #  "scraper": scrape_savvas},
+    # {"url": "https://job-boards.greenhouse.io/edmentum",
+    #  "name": "Edmentum",
+    #  "scraper": scrape_edmentum},
     # {"url": "https://careers.coursera.com/jobs/search?page=1&query=&department_uids%5B%5D=0b370cc4e5d8b1fba08d06720b9850aa&country_codes%5B%5D=US",
     #  "name": "Coursera",
     #  "scraper": scrape_coursera},
@@ -318,7 +367,7 @@ website_list = [
     #  "name": "DSST System",
     #  "scraper": scrape_public_schools_workday},
 
-# To add: Mastery prep, Coursera, Edmentum, Savvas Learning Company, Newsela, Macmillan Learning, 
+# To add: Mastery prep, Macmillan Learning, 
 ]
 
 # chrome_options = webdriver.ChromeOptions()
