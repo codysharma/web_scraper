@@ -12,7 +12,7 @@ from object_methods import BaseMethods
 
 # enter venv first: source env/Scripts/activate
 
-excluded_terms = ["senior", "lead", "manager", "principal", "staff", "director", "chief", "teacher", "sr", "architect", "head", "business intelligence", "therapist", "director", "president", "sales"]
+excluded_terms = ["senior", "lead", "manager", "principal", "staff", "director", "chief", "teacher", "sr", "architect", "head", "business intelligence", "therapist", "director", "president", "sales", "counsel"]
 
 # General helpers---------------------------------------------
 def click_element(locator, driver, time = 3):
@@ -49,6 +49,8 @@ def parse_job_info(jobs):
         #     location = "Remote"
         temp_jobs_list.append(f"{title} - {location} - {pay}")
     jobs_list_check(temp_jobs_list)
+    if len(temp_jobs_list) == 0:
+        temp_jobs_list.append("none")
     return temp_jobs_list
 
 def check_location(location, title):
@@ -62,14 +64,6 @@ def check_location(location, title):
     if ("telugu") in title.lower():
         return False
     return True
-
-
-def scrape_greenouse(driver):
-    locator = (By.CLASS_NAME, "job-post")
-    wait = get_wait(driver)
-    jobs_list = wait.until(EC.presence_of_all_elements_located(locator))
-    jobs_texts = (job.text for job in jobs_list)
-    return parse_goguardian(jobs_texts)
 
 # Scraper functions and niche helpers---------------------------------
 def scrape_deltamath(driver):
@@ -126,6 +120,8 @@ def parse_job_info_edtechjobsio(jobs):
         if ("min" or "h" or "d" or "w" in posted) and ("Sales" not in title):
             temp_jobs_list.append(f"{title} - {company} - {location} - {pay} - {posted}")
     jobs_list_check(temp_jobs_list)
+    if len(temp_jobs_list) == 0:
+        temp_jobs_list.append("none")
     return temp_jobs_list
 
 def collect_multipage_edtechio(driver, url, locator, job_listings):
@@ -214,6 +210,8 @@ def parse_khan_academy(jobs_list):
             continue
         temp_jobs_list.append(f"{title} - {location}")
     jobs_list_check(temp_jobs_list)
+    if len(temp_jobs_list) == 0:
+        temp_jobs_list.append("none")
     return temp_jobs_list
 
 def scrape_khan(driver):
@@ -246,6 +244,8 @@ def parse_goguardian(jobs_list):
             continue
         temp_jobs_list.append(f"{title} - {location}")
     jobs_list_check(temp_jobs_list)
+    if len(temp_jobs_list) == 0:
+        temp_jobs_list.append("none")
     return temp_jobs_list
 
 def scrape_goguardian(driver):
@@ -271,16 +271,18 @@ def scrape_edmentum(driver):
     return scrape_greenouse(driver)
 
 def parse_savvas(jobs_list):
-    temp_job_list = []
+    temp_jobs_list = []
     for job in jobs_list:
         lines = job.text.split("\n")
         title = lines[0] if len(lines) > 0 else ""
         location = lines[1] if len(lines) > 1 else ""
         if check_location(location, title) == False:
             continue
-        temp_job_list.append(f"{title} - {location}")
-    jobs_list_check(temp_job_list)
-    return temp_job_list
+        temp_jobs_list.append(f"{title} - {location}")
+    jobs_list_check(temp_jobs_list)
+    if len(temp_jobs_list) == 0:
+        temp_jobs_list.append("none")
+    return temp_jobs_list
 
 def scrape_savvas(driver):
     locator = (By.CSS_SELECTOR, ".ant-list-items li")
@@ -291,14 +293,101 @@ def scrape_savvas(driver):
 def scrape_newsela(driver):
     return scrape_greenouse(driver)
 
-def scrape_macmillon(driver):
+def parse_macmillan(jobs_list):
+    temp_jobs_list = []
+    for job in jobs_list:
+        lines = job.text.split("\n")
+        title = lines[0] if len(lines) > 0 else ""
+        location = lines[5] if len(lines) > 1 else ""
+        location2 = lines[10] if len(lines) > 2 else ""
+        temp_jobs_list.append(f"{title} - {location} - {location2}")
+    jobs_list_check(temp_jobs_list)
+    if len(temp_jobs_list) == 0:
+        temp_jobs_list.append("none")
+    return temp_jobs_list
 
+def scrape_macmillan(driver):
+    locator = (By.CLASS_NAME, "opportunity")
+    wait = get_wait(driver)
+    jobs_list = wait.until(EC.presence_of_all_elements_located(locator))
+    return parse_macmillan(jobs_list)
+
+def scrape_masteryprep(driver):
+    it_locator = (By.LINK_TEXT, "IT")
+    jobs_locator = (By.CSS_SELECTOR, ".whr-items li")
+    wait = get_wait(driver)
+    wait.until(EC.element_to_be_clickable(it_locator)).click()
+    time.sleep(1)
+    jobs_list = wait.until(EC.presence_of_all_elements_located(jobs_locator))
+    temp_jobs_list = []
+    for job in jobs_list:
+        print(job.text)
+        lines = job.text.split("\n")
+        print(lines)
+        title, location = ""
+        if len(lines) > 1:
+            title = lines[0] 
+            location = lines[1]
+            print(title,location)
+        if len(title) != 0:
+            temp_jobs_list.append(f"{title} - {location}")
+    # jobs_list_check(temp_jobs_list)
+    return temp_jobs_list
+
+def scrape_greenouse(driver):
+    locator = (By.CLASS_NAME, "job-post")
+    wait = get_wait(driver)
+    jobs_list = wait.until(EC.presence_of_all_elements_located(locator))
+    jobs_texts = (job.text for job in jobs_list)
+    return parse_goguardian(jobs_texts)
+
+def scrape_promethean():
+    # none sales and bsuiness jobs are not US based
     return None
 
+def scrape_anthology():
+    return None
+    # no tech jbos in US
+
+def parse_greatMinds(jobs_list):
+    temp_jobs_list = []
+    row_header = "Job title Work model Location"
+
+    for job in jobs_list:
+        lines = job.text.split("\n")
+        title = lines[0] if len(lines) > 0 else ""
+        if row_header not in title:
+            temp_jobs_list.append(f"{title}")
+    jobs_list_check(temp_jobs_list)
+    if len(temp_jobs_list) == 0:
+        temp_jobs_list.append("none")
+    return temp_jobs_list
+
+def scrape_greatMinds(driver):
+    list_locator = (By.XPATH, "/html/body/div/div[3]/main/div[2]/section/div[2]/div/div/div/div/div[2]/div/div/div[2]/div[2]/div/output")
+    jobs_locator = (By.TAG_NAME, "tr")
+
+    wait = get_wait(driver)
+    list = wait.until(EC.presence_of_element_located(list_locator))
+    jobs_list = list.find_elements(*jobs_locator)
+    return parse_greatMinds(jobs_list)
+
+# Todo: imaginelearning, schoolai, noredink, blackbaud, timely, turnitin, collegeboard, cengagegroup, adtalem, scholastic, 
 website_list = [
-    {"url": "https://recruiting.ultipro.com/HOL1002HPHM/JobBoard/be27b89b-3cb9-491f-a1b0-42f8b077a9dd/?q=&o=postedDateDesc&w=&wc=&we=&wpst=&f4=P3uiKTJuwU-EMui9Ye7png&f5=Z6VUAqvr8UOWHe2Wz3tZ7w",
-     "name": "Macmillan Learning",
-     "scraper": scrape_macmillan},
+    # {"url": "https://greatminds.recruitee.com/?jobs-c88dea0d%5Btab%5D=all",
+    #  "name": "Great Minds", 
+    #  "scraper": scrape_greatMinds},
+    #  {"url": "", "name": "Blackboard/Anthology", "scraper": scrape_anthology},
+    # {"url": "https://www.prometheanworld.com/about-us/careers/", 
+    #  "name": "Promethean", 
+    #  "scraper": scrape_promethean},
+    # {"url": "https://www.masteryprep.com/join-team/#Openings",
+    #  "name": "MasteryPrep",
+    #  "scraper": scrape_masteryprep,
+    # NOT ACTUALLY PULLING TEXT FROM WEB ELEMENT FOR SOME REASON},
+    # {"url": "https://recruiting.ultipro.com/HOL1002HPHM/JobBoard/be27b89b-3cb9-491f-a1b0-42f8b077a9dd/?q=&o=postedDateDesc&w=&wc=&we=&wpst=&f4=P3uiKTJuwU-EMui9Ye7png&f5=Z6VUAqvr8UOWHe2Wz3tZ7w",
+    #  "name": "Macmillan Learning",
+    #  "scraper": scrape_macmillan},
     # {"url": "https://job-boards.greenhouse.io/newsela",
     #  "name": "Newsela",
     #  "scraper": scrape_newsela},
@@ -365,10 +454,9 @@ website_list = [
     #  "scraper": scrape_dps_aurora},
     # {"url": "https://dsstpublicschools.wd5.myworkdayjobs.com/DSST_Careers?jobFamily=a62b5af9bc7b100114066481a8960000&jobFamily=d969b57881e70103beb07a72d629da6b&jobFamily=d969b57881e70104991d7a72d629d86b",
     #  "name": "DSST System",
-    #  "scraper": scrape_public_schools_workday},
-
-# To add: Mastery prep, Macmillan Learning, 
+    #  "scraper": scrape_public_schools_workday}, 
 ]
+
 
 # chrome_options = webdriver.ChromeOptions()
 # prefs = {"profile.managed_default_content_settings.images": 2}
