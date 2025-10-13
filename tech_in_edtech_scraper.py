@@ -22,6 +22,9 @@ acceptable_locations =[
 def click_element(locator, driver, time = 3):
     WebDriverWait(driver, time).until(EC.element_to_be_clickable(locator)).click()
 
+def type_in_element(locator, text, time = 2):
+    WebDriverWait(driver, time).until(EC.element_to_be_clickable(locator)).send_keys(text)
+
 def get_wait(driver, timeout=3):
     return WebDriverWait(driver, timeout)
 
@@ -34,10 +37,16 @@ def check_for_button_next(driver, locator):
         print("No next button present")
         return False
 
-def jobs_list_check(jobs_list, excluded_terms=excluded_terms):
+def jobs_title_check(jobs_list, excluded_terms=excluded_terms):
     jobs_list[:] = [
         job for job in jobs_list 
         if not any(term in job.lower() for term in excluded_terms)
+    ]
+
+def jobs_title_check_with_key(jobs_list, key, excluded_terms=excluded_terms):
+        jobs_list[:] = [
+        job for job in jobs_list 
+        if not any(term in job[key].lower() for term in excluded_terms)
     ]
 
 def parse_job_info(jobs):
@@ -52,7 +61,7 @@ def parse_job_info(jobs):
         # if "remote" in job.text.split("\n")[1].lower():
         #     location = "Remote"
         temp_jobs_list.append(f"{title} - {location} - {pay}")
-    jobs_list_check(temp_jobs_list)
+    jobs_title_check(temp_jobs_list)
     if len(temp_jobs_list) == 0:
         temp_jobs_list.append("none")
     return temp_jobs_list
@@ -77,14 +86,15 @@ def parse_aggregator_info(jobs_list):
         location = lines[2]
         salary = lines[4]
         job_entry["description"] = f"{title} at {company} - {location} - {salary}"
-        job_entry["href"] = job.get_attribute('href')
+        try:
+            link_el = job.find_element(By.CSS_SELECTOR, "a.job-details-link")
+            job_entry['href'] = link_el.get_attribute("href")
+        except Exception:
+            job_entry['href'] = None
         temp_jobs_list.append(job_entry)
     jobs_aggregator_list_check(temp_jobs_list, key="description")
     if len(temp_jobs_list) == 0:
         temp_jobs_list.append("None")
-    # temp_details = []
-    # for job_entry in temp_jobs_list:
-    #     temp_details.append(job_entry["description"])
     return temp_jobs_list
 
 def check_location(location, title):
@@ -104,48 +114,12 @@ def scrollToBottom():
     driver.execute_script("arguments[0].scrollIntoView()", footer_element)
     time.sleep(2)
 
-# Scraper functions and niche helpers---------------------------------
-def scrape_deltamath(driver):
-    wait = get_wait(driver)
-    roles_list_visible = wait.until(EC.presence_of_element_located((By.XPATH, "/html/body/div/div[1]/main/div/p")))
-    results = roles_list_visible.text
-    return results
-
-def scrape_cambium(driver):
-    wait = get_wait(driver)
-    jobs = wait.until(EC.presence_of_all_elements_located((By.XPATH, "/html/body/div[1]/div/div/div/div[2]/div/div[1]/div/ul/li")))
-    time.sleep(1)
-    return parse_job_info(jobs)   
-
-def scrape_magicschool(driver):
-    wait = get_wait(driver)
-    list_of_elements = wait.until(EC.presence_of_all_elements_located((By.CLASS_NAME, "ashby-job-posting-brief")))
-    return parse_job_info(list_of_elements)
-
-def scrape_pairin(driver):
-    wait = get_wait(driver)
-    element = wait.until(EC.presence_of_element_located((By.XPATH, "/html/body/div[1]/main/section/div[6]/h4")))
-    list_of_elements = driver.find_element(By.XPATH, "/html/body/div[1]/main/section/div[6]/h4")
-    # NEED TO ADD SCRAPER FOR WHEN THERE IS A JOB TO TEST WITH
-    return list_of_elements.text
-
-def scrape_guild(driver):
-    # client side rendering makes this not work.
-    return
-
-def scrape_dps_aurora(driver):
-    wait = get_wait(driver)
-    job_tiles = wait.until(EC.presence_of_all_elements_located((By.CSS_SELECTOR, "ul span.job-tile__title")))
-    return parse_job_info(job_tiles)
-
-def scrape_public_schools_workday(driver):
-    wait = get_wait(driver)
-    job_listings = wait.until(EC.presence_of_all_elements_located((By.CSS_SELECTOR, "ul h3")))
-    return parse_job_info(job_listings)
+# Parsers - site specific----------------------------
 
 def parse_job_info_edtechjobsio(jobs):
-    temp_jobs_list = []
+    temp_jobs_list = []    
     for job in jobs:
+        job_entry = {}
         lines = job.text.split("\n")
         title = lines[0] if len(lines) > 0 else ""
         company = lines[1] if len(lines) > 1 else ""
@@ -157,10 +131,16 @@ def parse_job_info_edtechjobsio(jobs):
             pay = lines[7]
             posted = lines[9] if len(lines) > 9 else ""
         if ("min" or "h" or "d" or "w" in posted) and ("Sales" not in title):
-            temp_jobs_list.append(f"{title} - {company} - {location} - {pay} - {posted}")
-    jobs_list_check(temp_jobs_list)
+            job_entry['description'] = f"{title} - {company} - {location} - {pay} - {posted}"
+            try:
+                link_el = job.find_element(By.CSS_SELECTOR, "a.job-details-link")
+                job_entry['href'] = link_el.get_attribute("href")
+            except Exception:
+                job_entry['href'] = None
+            temp_jobs_list.append(job_entry)
+    jobs_aggregator_list_check(temp_jobs_list, key="description")
     if len(temp_jobs_list) == 0:
-        temp_jobs_list.append("none")
+        temp_jobs_list.append("None")
     return temp_jobs_list
 
 def collect_multipage_edtechio(driver, url, locator, job_listings):
@@ -169,6 +149,164 @@ def collect_multipage_edtechio(driver, url, locator, job_listings):
     temp_job_listings = wait.until(EC.presence_of_all_elements_located(locator))
     job_listings += parse_job_info_edtechjobsio(temp_job_listings)
     return job_listings
+
+def parse_khan_academy(jobs_list):
+    temp_jobs_list = []
+    for job in jobs_list:
+        lines = job.text.split("\n")
+        title = lines[0] if len(lines) > 0 else ""
+        location = lines[1] if len(lines) > 1 else ""
+        if (not check_location(location, title)) or ("talent community" in title.lower()):
+            continue
+        temp_jobs_list.append(f"{title} - {location}")
+    jobs_title_check(temp_jobs_list)
+    if len(temp_jobs_list) == 0:
+        temp_jobs_list.append("none")
+    return temp_jobs_list
+
+def parse_goguardian(jobs_list):
+    temp_jobs_list = []
+    for job in jobs_list:
+        lines = job.split("\n")
+        title = lines[0] if len(lines) > 0 else ""
+        location = lines[1] if len(lines) > 1 else ""
+        if check_location(location, title) == False:
+            continue
+        temp_jobs_list.append(f"{title} - {location}")
+    jobs_title_check(temp_jobs_list)
+    if len(temp_jobs_list) == 0:
+        temp_jobs_list.append("none")
+    return temp_jobs_list
+
+def parse_savvas(jobs_list):
+    temp_jobs_list = []
+    for job in jobs_list:
+        lines = job.text.split("\n")
+        title = lines[0] if len(lines) > 0 else ""
+        location = lines[1] if len(lines) > 1 else ""
+        if check_location(location, title) == False:
+            continue
+        temp_jobs_list.append(f"{title} - {location}")
+    jobs_title_check(temp_jobs_list)
+    if len(temp_jobs_list) == 0:
+        temp_jobs_list.append("none")
+    return temp_jobs_list
+
+def parse_macmillan(jobs_list):
+    temp_jobs_list = []
+    for job in jobs_list:
+        lines = job.text.split("\n")
+        title = lines[0] if len(lines) > 0 else ""
+        location = lines[5] if len(lines) > 1 else ""
+        location2 = lines[10] if len(lines) > 2 else ""
+        temp_jobs_list.append(f"{title} - {location} - {location2}")
+    jobs_list_check(temp_jobs_list)
+    if len(temp_jobs_list) == 0:
+        temp_jobs_list.append("None")
+    return temp_jobs_list
+
+def parse_greatMinds(jobs_list):
+    temp_jobs_list = []
+    row_header = "Job title Work model Location"
+    for job in jobs_list:
+        job_entry = {}
+        lines = job.text.split("\n")
+        title = lines[0] if len(lines) > 0 else ""
+        if row_header not in title:
+            job_entry['description'] = title
+            try:
+                link_el = job.find_element(By.TAG_NAME, "a")
+                href = link_el.get_attribute('href')
+                job_entry['href'] = href
+            except Exception:
+                job_entry['href'] = None
+            temp_jobs_list.append(job_entry)
+    jobs_title_check_with_key(temp_jobs_list, "description")
+    if len(temp_jobs_list) == 0:
+        temp_jobs_list.append("none")
+    return temp_jobs_list
+
+def parse_jeffco(jobs_list):
+    temp_jobs_list = []
+    for job in jobs_list:
+        lines = job.text.split("\n")
+        title = lines[0] if len(lines) > 0 else ""
+        location = lines[2] if len(lines) > 1 else ""
+        temp_jobs_list.append(f"{title} - {location}")
+    jobs_title_check(temp_jobs_list)
+    if len(temp_jobs_list) == 0:
+        temp_jobs_list.append("none")
+    return temp_jobs_list
+
+
+# Scrapers-----------------------------------------
+
+def scrape_abre(driver):
+    locator = (By.XPATH, "/html/body/main/section[2]/div[2]/div/ul/li")
+    wait = get_wait(driver)
+    temp_jobs_list = []
+    for job in wait.until(EC.presence_of_all_elements_located(locator)):
+        lines = job.text.split("\n")
+        title = lines[0] if len(lines) > 0 else ""
+        temp_jobs_list.append(f"{title}")
+    jobs_list_check(temp_jobs_list)
+    return temp_jobs_list
+
+def scrape_anthology(driver):
+    return None
+    # no tech jbos in US
+
+def scrape_cambium(driver):
+    wait = get_wait(driver)
+    jobs = wait.until(EC.presence_of_all_elements_located((By.XPATH, "/html/body/div[1]/div/div/div/div[2]/div/div[1]/div/ul/li")))
+    time.sleep(1)
+    return parse_job_info(jobs)   
+
+def scrape_coloradodoe(driver):
+    locator = (By.CLASS_NAME, "job-table-title")
+    wait = get_wait(driver)
+    job_listings = wait.until(EC.presence_of_all_elements_located(locator))
+    temp_job_list = []
+    for job in job_listings:
+        if "Job Title" not in job.text :         
+            temp_job_list.append(job.text)
+    jobs_list_check(temp_job_list)
+    return temp_job_list
+
+def scrape_coursera(driver):
+    title_locator = (By.CSS_SELECTOR, ".job-search-results-title a")
+    wait = get_wait(driver)
+    jobs_list = wait.until(EC.presence_of_all_elements_located(title_locator))
+    temp_jobs_list = []
+    for job in jobs_list:
+        title = job.text.strip()
+        if title:
+            temp_jobs_list.append(title)
+    return jobs_list_check(temp_jobs_list)
+
+def scrape_curriculumAssociates(driver):
+    return "None - all tech jobs in India"
+
+def scrape_deltamath(driver):
+    wait = get_wait(driver)
+    roles_list_visible = wait.until(EC.presence_of_element_located((By.XPATH, "/html/body/div/div[1]/main/div/p")))
+    results = roles_list_visible.text
+    return results
+
+def scrape_dps_aurora(driver):
+    wait = get_wait(driver)
+    job_tiles = wait.until(EC.presence_of_all_elements_located((By.CSS_SELECTOR, "ul span.job-tile__title")))
+    return parse_job_info(job_tiles)
+
+def scrape_edmentum(driver):
+    return scrape_greenouse(driver)
+
+def scrape_edtechcom(driver):
+    locator = (By.CSS_SELECTOR, "#listings a")
+    wait = get_wait(driver)
+    scrollToBottom()
+    jobs_list = wait.until(EC.presence_of_all_elements_located(locator))
+    return parse_aggregator_info(jobs_list)
 
 def scrape_edtechjobsio(driver):
     url_entry_level = "https://edtechjobs.io/jobs/entry-level"
@@ -189,107 +327,6 @@ def scrape_edtechjobsio(driver):
 
     return job_listings
 
-def scrape_jeffco_schools(driver):
-    locator_show_all_jobs = (By.ID, "HRS_SCH_WRK$0_row_0")
-    locator_show_more_jobs = (By.XPATH, "/html/body/form/div[2]/div[4]/div[2]/div/div/div/div/div[1]/section/div/div/div/div[1]/div/div[1]/div[2]/div/div/div[3]/fieldset/div[1]/span/a")
-    locator_show_tech_jobs = (By.ID, "win0divPTS_SELECTctrl$15")
-    locator_results_list = (By.XPATH, "/html/body/form/div[2]/div[4]/div[2]/div/div/div/div/div[2]/section/div/div[2]/div[2]/div/div[1]/div/div[2]/div/div/div/ul/li")
-
-    wait = get_wait(driver)
-    click_element(locator_show_all_jobs, driver)
-    # time.sleep(6)
-    click_element(locator_show_more_jobs, driver)
-    # time.sleep(6)
-    click_element(locator_show_tech_jobs, driver)
-    # time.sleep(6)
-
-    jobs_list = wait.until(EC.visibility_of_all_elements_located(locator_results_list))
-    return parse_job_info(jobs_list)
-
-def scrape_coloradodoe(driver):
-    locator = (By.CLASS_NAME, "job-table-title")
-    wait = get_wait(driver)
-    job_listings = wait.until(EC.presence_of_all_elements_located(locator))
-    temp_job_list = []
-    for job in job_listings:
-        if "Job Title" not in job.text :         
-            temp_job_list.append(job.text)
-    jobs_list_check(temp_job_list)
-    return temp_job_list
-
-def scrape_proximity_learning(driver):
-    locator = (By.CSS_SELECTOR, "ul li")
-    wait = get_wait(driver)
-    temp_jobs_list = []
-    for job in wait.until(EC.presence_of_all_elements_located(locator)):
-        lines = job.text.split("\n")
-        title = lines[0] if len(lines) > 0 else ""
-        location = lines[2] if len(lines) > 2 else ""
-        if check_location(location, title) == False:
-            continue
-        temp_jobs_list.append(f"{title} - {location}")
-    jobs_list_check(temp_jobs_list)
-    return temp_jobs_list
-
-def scrape_abre(driver):
-    locator = (By.XPATH, "/html/body/main/section[2]/div[2]/div/ul/li")
-    wait = get_wait(driver)
-    temp_jobs_list = []
-    for job in wait.until(EC.presence_of_all_elements_located(locator)):
-        lines = job.text.split("\n")
-        title = lines[0] if len(lines) > 0 else ""
-        temp_jobs_list.append(f"{title}")
-    jobs_list_check(temp_jobs_list)
-    return temp_jobs_list
-
-def parse_khan_academy(jobs_list):
-    temp_jobs_list = []
-    for job in jobs_list:
-        lines = job.text.split("\n")
-        title = lines[0] if len(lines) > 0 else ""
-        location = lines[1] if len(lines) > 1 else ""
-        if (not check_location(location, title)) or ("talent community" in title.lower()):
-            continue
-        temp_jobs_list.append(f"{title} - {location}")
-    jobs_list_check(temp_jobs_list)
-    if len(temp_jobs_list) == 0:
-        temp_jobs_list.append("none")
-    return temp_jobs_list
-
-def scrape_khan(driver):
-    locator = (By.CLASS_NAME, "_12k2rikw")
-    wait = get_wait(driver)
-    jobs_list =  wait.until(EC.presence_of_all_elements_located(locator))
-    return parse_khan_academy(jobs_list)
-
-def scrape_powerschool(driver):
-    return "None - all tech jobs are India"
-
-def scrape_pearson(driver):
-    modal_locator = (By.ID, "onetrust-accept-btn-handler")
-    # modal that is a problem to click
-    return "Have to check their <a href='https://pearson.jobs/locations/usa/schedule/full-time/workplace-type/remote/jobs/' target=_blank >website</a>"
-
-def scrape_skyward(driver):
-    locator = (By.CLASS_NAME, "opening-jobs")
-    wait = get_wait(driver)
-    jobs_list = wait.until(EC.presence_of_all_elements_located(locator))
-    return parse_job_info(jobs_list)
-
-def parse_goguardian(jobs_list):
-    temp_jobs_list = []
-    for job in jobs_list:
-        lines = job.split("\n")
-        title = lines[0] if len(lines) > 0 else ""
-        location = lines[1] if len(lines) > 1 else ""
-        if check_location(location, title) == False:
-            continue
-        temp_jobs_list.append(f"{title} - {location}")
-    jobs_list_check(temp_jobs_list)
-    if len(temp_jobs_list) == 0:
-        temp_jobs_list.append("none")
-    return temp_jobs_list
-
 def scrape_goguardian(driver):
     # greenhouse
     locator = (By.CSS_SELECTOR, "tbody .cell")
@@ -298,61 +335,56 @@ def scrape_goguardian(driver):
     jobs_texts = (job.text for job in jobs_list)
     return parse_goguardian(jobs_texts)
 
-def scrape_coursera(driver):
-    title_locator = (By.CSS_SELECTOR, ".job-search-results-title a")
+def scrape_greatMinds(driver):
+    list_locator = (By.XPATH, "/html/body/div/div[3]/main/div[2]/section/div[2]/div/div/div/div/div[2]/div/div/div[2]/div[2]/div/output")
+    jobs_locator = (By.TAG_NAME, "tr")
     wait = get_wait(driver)
-    jobs_list = wait.until(EC.presence_of_all_elements_located(title_locator))
-    temp_jobs_list = []
-    for job in jobs_list:
-        title = job.text.strip()
-        if title:
-            temp_jobs_list.append(title)
-    return jobs_list_check(temp_jobs_list)
+    list = wait.until(EC.presence_of_element_located(list_locator))
+    jobs_list = list.find_elements(*jobs_locator)
+    return parse_greatMinds(jobs_list)
 
-def scrape_edmentum(driver):
-    return scrape_greenouse(driver)
-
-def parse_savvas(jobs_list):
-    temp_jobs_list = []
-    for job in jobs_list:
-        lines = job.text.split("\n")
-        title = lines[0] if len(lines) > 0 else ""
-        location = lines[1] if len(lines) > 1 else ""
-        if check_location(location, title) == False:
-            continue
-        temp_jobs_list.append(f"{title} - {location}")
-    jobs_list_check(temp_jobs_list)
-    if len(temp_jobs_list) == 0:
-        temp_jobs_list.append("none")
-    return temp_jobs_list
-
-def scrape_savvas(driver):
-    locator = (By.CSS_SELECTOR, ".ant-list-items li")
+def scrape_greenouse(driver):
+    locator = (By.CLASS_NAME, "job-post")
     wait = get_wait(driver)
     jobs_list = wait.until(EC.presence_of_all_elements_located(locator))
-    return parse_savvas(jobs_list)
+    jobs_texts = (job.text for job in jobs_list)
+    return parse_goguardian(jobs_texts)
 
-def scrape_newsela(driver):
-    return scrape_greenouse(driver)
+def scrape_guild(driver):
+    # client side rendering makes this not work.
+    return
 
-def parse_macmillan(jobs_list):
-    temp_jobs_list = []
-    for job in jobs_list:
-        lines = job.text.split("\n")
-        title = lines[0] if len(lines) > 0 else ""
-        location = lines[5] if len(lines) > 1 else ""
-        location2 = lines[10] if len(lines) > 2 else ""
-        temp_jobs_list.append(f"{title} - {location} - {location2}")
-    jobs_list_check(temp_jobs_list)
-    if len(temp_jobs_list) == 0:
-        temp_jobs_list.append("None")
-    return temp_jobs_list
+def scrape_jeffco_schools(driver):
+    locator_show_all_jobs = (By.ID, "HRS_SCH_WRK$0_row_0")
+    locator_search_text_box = (By.XPATH, "/html/body/form/div[2]/div[4]/div[2]/div/div/div/div/div[2]/section/div/div[1]/div/div/div/div[1]/div[1]/div/div[2]/input")
+    search_terms = "Office/Tech/Support Staff"
+    locator_search_button = (By.ID, "HRS_SCH_WRK_FLU_HRS_SEARCH_BTN")
+    locator_results_list = (By.CSS_SELECTOR, "div[title='Search Results List'] > ul > li")
+
+    wait = get_wait(driver)
+    click_element(locator_show_all_jobs, driver)
+    type_in_element(locator_search_text_box, search_terms)
+    click_element(locator_search_button, driver)
+    time.sleep(1)
+    jobs_list = driver.find_elements(*locator_results_list)    
+    return parse_jeffco(jobs_list)
+
+def scrape_khan(driver):
+    locator = (By.CLASS_NAME, "_12k2rikw")
+    wait = get_wait(driver)
+    jobs_list =  wait.until(EC.presence_of_all_elements_located(locator))
+    return parse_khan_academy(jobs_list)
 
 def scrape_macmillan(driver):
     locator = (By.CLASS_NAME, "opportunity")
     wait = get_wait(driver)
     jobs_list = wait.until(EC.presence_of_all_elements_located(locator))
     return parse_macmillan(jobs_list)
+
+def scrape_magicschool(driver):
+    wait = get_wait(driver)
+    list_of_elements = wait.until(EC.presence_of_all_elements_located((By.CLASS_NAME, "ashby-job-posting-brief")))
+    return parse_job_info(list_of_elements)
 
 def scrape_masteryprep(driver):
     it_locator = (By.LINK_TEXT, "IT")
@@ -377,59 +409,66 @@ def scrape_masteryprep(driver):
     # return temp_jobs_list
     return None
 
-def scrape_greenouse(driver):
-    locator = (By.CLASS_NAME, "job-post")
+def scrape_newsela(driver):
+    return scrape_greenouse(driver)
+
+def scrape_pairin(driver):
     wait = get_wait(driver)
-    jobs_list = wait.until(EC.presence_of_all_elements_located(locator))
-    jobs_texts = (job.text for job in jobs_list)
-    return parse_goguardian(jobs_texts)
+    element = wait.until(EC.presence_of_element_located((By.XPATH, "/html/body/div[1]/main/section/div[6]/h4")))
+    list_of_elements = driver.find_element(By.XPATH, "/html/body/div[1]/main/section/div[6]/h4")
+    # NEED TO ADD SCRAPER FOR WHEN THERE IS A JOB TO TEST WITH
+    return list_of_elements.text
+
+def scrape_pearson(driver):
+    modal_locator = (By.ID, "onetrust-accept-btn-handler")
+    # modal that is a problem to click
+    return "Have to check their <a href='https://pearson.jobs/locations/usa/schedule/full-time/workplace-type/remote/jobs/' target=_blank >website</a>"
+
+def scrape_powerschool(driver):
+    return "None - all tech jobs are India"
 
 def scrape_promethean(driver):
     # none sales and bsuiness jobs are not US based
     return None
 
-def scrape_anthology(driver):
-    return None
-    # no tech jbos in US
-
-def parse_greatMinds(jobs_list):
+def scrape_proximity_learning(driver):
+    locator = (By.CSS_SELECTOR, "ul li")
+    wait = get_wait(driver)
     temp_jobs_list = []
-    row_header = "Job title Work model Location"
-
-    for job in jobs_list:
+    for job in wait.until(EC.presence_of_all_elements_located(locator)):
         lines = job.text.split("\n")
         title = lines[0] if len(lines) > 0 else ""
-        if row_header not in title:
-            temp_jobs_list.append(f"{title}")
+        location = lines[2] if len(lines) > 2 else ""
+        if check_location(location, title) == False:
+            continue
+        temp_jobs_list.append(f"{title} - {location}")
     jobs_list_check(temp_jobs_list)
-    if len(temp_jobs_list) == 0:
-        temp_jobs_list.append("none")
     return temp_jobs_list
 
-def scrape_greatMinds(driver):
-    list_locator = (By.XPATH, "/html/body/div/div[3]/main/div[2]/section/div[2]/div/div/div/div/div[2]/div/div/div[2]/div[2]/div/output")
-    jobs_locator = (By.TAG_NAME, "tr")
-
+def scrape_public_schools_workday(driver):
     wait = get_wait(driver)
-    list = wait.until(EC.presence_of_element_located(list_locator))
-    jobs_list = list.find_elements(*jobs_locator)
-    return parse_greatMinds(jobs_list)
+    job_listings = wait.until(EC.presence_of_all_elements_located((By.CSS_SELECTOR, "ul h3")))
+    return parse_job_info(job_listings)
 
-def scrape_curriculumAssociates(driver):
-    return "None - all tech jobs in India"
-
-def scrape_edtechcom(driver):
-    locator = (By.CSS_SELECTOR, "#listings a")
+def scrape_savvas(driver):
+    locator = (By.CSS_SELECTOR, ".ant-list-items li")
     wait = get_wait(driver)
-    scrollToBottom()
     jobs_list = wait.until(EC.presence_of_all_elements_located(locator))
-    return parse_aggregator_info(jobs_list)
+    return parse_savvas(jobs_list)
+
+def scrape_skyward(driver):
+    locator = (By.CLASS_NAME, "opening-jobs")
+    wait = get_wait(driver)
+    jobs_list = wait.until(EC.presence_of_all_elements_located(locator))
+    return parse_job_info(jobs_list)
+
+
 
 # Todo: retry masteryprep, imaginelearning, schoolai, noredink, blackbaud, timely, turnitin, collegeboard, cengagegroup, adtalem, scholastic, adams county, mapleton
 website_list = [
-    {"url": "https://www.edtech.com/jobs/software-engineer-jobs?ListingAge=Last%2014%20days&Country=United%20States",
-     "name": "Edtech.com",
-     "scraper": scrape_edtechcom},
+    # {"url": "https://www.edtech.com/jobs/software-engineer-jobs?ListingAge=Last%2014%20days&Country=United%20States",
+    #  "name": "Edtech.com",
+    #  "scraper": scrape_edtechcom},
     # {"url": "https://curriculumassociates.wd5.myworkdayjobs.com/External?jobFamilyGroup=2dd225c058cb0101b12d250db9000000&jobFamilyGroup=2dd225c058cb0101b12d2641b2550000",
     #  "name": "Curriculum Associates",
     #  "scraper": scrape_curriculumAssociates},
@@ -501,9 +540,9 @@ website_list = [
     #  "name": "Pairin",
     #  "scraper": scrape_pairin,
     # },
-    # {"url": "https://careers.jeffco.k12.co.us/psc/careers/EMPLOYEE/APPLICANT/c/HRS_HRAM_FL.HRS_CG_SEARCH_FL.GBL?FOCUS=Applicant&SiteId=3",
-    #  "name": "JeffCo Schools", 
-    #  "scraper": scrape_jeffco_schools},
+    {"url": "https://careers.jeffco.k12.co.us/psc/careers/EMPLOYEE/APPLICANT/c/HRS_HRAM_FL.HRS_CG_SEARCH_FL.GBL?FOCUS=Applicant&SiteId=3",
+     "name": "JeffCo Schools", 
+     "scraper": scrape_jeffco_schools},
     # {"url": "https://dpsjobboard.dpsk12.org/en/sites/CX_1001/jobs?lastSelectedFacet=TITLES&mode=location&selectedTitlesFacet=30%3B46",
     #  "name": "Denver Public Schools",
     #  "scraper": scrape_dps_aurora},
