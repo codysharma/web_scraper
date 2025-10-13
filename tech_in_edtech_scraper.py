@@ -87,8 +87,7 @@ def parse_aggregator_info(jobs_list):
         salary = lines[4]
         job_entry["description"] = f"{title} at {company} - {location} - {salary}"
         try:
-            link_el = job.find_element(By.CSS_SELECTOR, "a.job-details-link")
-            job_entry['href'] = link_el.get_attribute("href")
+            job_entry['href'] = job.get_attribute("href")
         except Exception:
             job_entry['href'] = None
         temp_jobs_list.append(job_entry)
@@ -200,7 +199,7 @@ def parse_macmillan(jobs_list):
         location = lines[5] if len(lines) > 1 else ""
         location2 = lines[10] if len(lines) > 2 else ""
         temp_jobs_list.append(f"{title} - {location} - {location2}")
-    jobs_list_check(temp_jobs_list)
+    jobs_title_check(temp_jobs_list)
     if len(temp_jobs_list) == 0:
         temp_jobs_list.append("None")
     return temp_jobs_list
@@ -249,7 +248,7 @@ def scrape_abre(driver):
         lines = job.text.split("\n")
         title = lines[0] if len(lines) > 0 else ""
         temp_jobs_list.append(f"{title}")
-    jobs_list_check(temp_jobs_list)
+    jobs_title_check(temp_jobs_list)
     return temp_jobs_list
 
 def scrape_anthology(driver):
@@ -270,7 +269,7 @@ def scrape_coloradodoe(driver):
     for job in job_listings:
         if "Job Title" not in job.text :         
             temp_job_list.append(job.text)
-    jobs_list_check(temp_job_list)
+    jobs_title_check(temp_job_list)
     return temp_job_list
 
 def scrape_coursera(driver):
@@ -282,7 +281,7 @@ def scrape_coursera(driver):
         title = job.text.strip()
         if title:
             temp_jobs_list.append(title)
-    return jobs_list_check(temp_jobs_list)
+    return jobs_title_check(temp_jobs_list)
 
 def scrape_curriculumAssociates(driver):
     return "None - all tech jobs in India"
@@ -405,7 +404,7 @@ def scrape_masteryprep(driver):
             # print(title,location)
         if len(title) != 0:
             temp_jobs_list.append(f"{title} - {location}")
-    # jobs_list_check(temp_jobs_list)
+    # jobs_title_check(temp_jobs_list)
     # return temp_jobs_list
     return None
 
@@ -442,7 +441,7 @@ def scrape_proximity_learning(driver):
         if check_location(location, title) == False:
             continue
         temp_jobs_list.append(f"{title} - {location}")
-    jobs_list_check(temp_jobs_list)
+    jobs_title_check(temp_jobs_list)
     return temp_jobs_list
 
 def scrape_public_schools_workday(driver):
@@ -466,9 +465,9 @@ def scrape_skyward(driver):
 
 # Todo: retry masteryprep, imaginelearning, schoolai, noredink, blackbaud, timely, turnitin, collegeboard, cengagegroup, adtalem, scholastic, adams county, mapleton
 website_list = [
-    # {"url": "https://www.edtech.com/jobs/software-engineer-jobs?ListingAge=Last%2014%20days&Country=United%20States",
-    #  "name": "Edtech.com",
-    #  "scraper": scrape_edtechcom},
+    {"url": "https://www.edtech.com/jobs/software-engineer-jobs?ListingAge=Last%2014%20days&Country=United%20States",
+     "name": "Edtech.com",
+     "scraper": scrape_edtechcom},
     # {"url": "https://curriculumassociates.wd5.myworkdayjobs.com/External?jobFamilyGroup=2dd225c058cb0101b12d250db9000000&jobFamilyGroup=2dd225c058cb0101b12d2641b2550000",
     #  "name": "Curriculum Associates",
     #  "scraper": scrape_curriculumAssociates},
@@ -540,9 +539,9 @@ website_list = [
     #  "name": "Pairin",
     #  "scraper": scrape_pairin,
     # },
-    {"url": "https://careers.jeffco.k12.co.us/psc/careers/EMPLOYEE/APPLICANT/c/HRS_HRAM_FL.HRS_CG_SEARCH_FL.GBL?FOCUS=Applicant&SiteId=3",
-     "name": "JeffCo Schools", 
-     "scraper": scrape_jeffco_schools},
+    # {"url": "https://careers.jeffco.k12.co.us/psc/careers/EMPLOYEE/APPLICANT/c/HRS_HRAM_FL.HRS_CG_SEARCH_FL.GBL?FOCUS=Applicant&SiteId=3",
+    #  "name": "JeffCo Schools", 
+    #  "scraper": scrape_jeffco_schools},
     # {"url": "https://dpsjobboard.dpsk12.org/en/sites/CX_1001/jobs?lastSelectedFacet=TITLES&mode=location&selectedTitlesFacet=30%3B46",
     #  "name": "Denver Public Schools",
     #  "scraper": scrape_dps_aurora},
@@ -590,7 +589,7 @@ for site in website_list:
 driver.quit()
 
 # export to generated html file
-results_dir = os.path.join(os.getcwd(), "results")
+results_dir = os.path.join(os.getcwd(), "front_end")
 template_file = os.path.join(results_dir, "template.html")
 with open(template_file, "r", encoding="utf-8") as f:
     template = f.read()
@@ -610,8 +609,8 @@ for company, data in all_results.items():
     company_sections += f'  <a href="{data["url"]}" target="_blank" class="view-link">View All Openings →</a>\n'
     company_sections += '</div>\n'
 
-html_content = template.replace("{{ timestamp }}", datetime.now().strftime("%B %d, %Y at %I:%M %p"))
-html_content = html_content.replace("{{ company_sections }}", company_sections)
+# html_content = template.replace("{{ timestamp }}", datetime.now().strftime("%B %d, %Y at %I:%M %p"))
+html_content = template.replace("{{ company_sections }}", company_sections)
 
 output_file = os.path.join(results_dir, "job_results.html")
 with open(output_file, "w", encoding="utf-8") as f:
