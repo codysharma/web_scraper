@@ -12,7 +12,11 @@ from object_methods import BaseMethods
 
 # enter venv first: source env/Scripts/activate
 
-excluded_terms = ["senior", "lead", "manager", "principal", "staff", "director", "chief", "teacher", "sr", "architect", "head", "business intelligence", "therapist", "director", "president", "sales", "counsel"]
+excluded_terms = ["senior", "lead", "manager", "principal", "staff", "director", "chief", "teacher", "sr", "architect", "head", "business intelligence", "therapist", "director", "president", "sales", "counsel", "vp"]
+
+acceptable_locations =[
+        "remote" , "denver" , "co" , "colorado" , "united states" , "usa" , "us"
+    ]
 
 # General helpers---------------------------------------------
 def click_element(locator, driver, time = 3):
@@ -53,10 +57,37 @@ def parse_job_info(jobs):
         temp_jobs_list.append("none")
     return temp_jobs_list
 
-def check_location(location, title):
-    acceptable_locations =[
-        "remote" , "denver" , "co" , "col,ado" , "united states" , "usa" , "us"
+def jobs_aggregator_list_check(jobs_list, key, excluded_terms=excluded_terms):
+    jobs_list[:] = [
+        job for job in jobs_list 
+        if not any(term in job[key].lower() for term in excluded_terms)
     ]
+    jobs_list[:] = [
+        job for job in jobs_list 
+        if any(term in job[key].lower() for term in acceptable_locations)
+    ]
+
+def parse_aggregator_info(jobs_list):
+    temp_jobs_list = []
+    for job in jobs_list:
+        job_entry = {}
+        lines = job.text.split("\n")
+        title = lines[0]
+        company = lines[1]
+        location = lines[2]
+        salary = lines[4]
+        job_entry["description"] = f"{title} at {company} - {location} - {salary}"
+        job_entry["href"] = job.get_attribute('href')
+        temp_jobs_list.append(job_entry)
+    jobs_aggregator_list_check(temp_jobs_list, key="description")
+    if len(temp_jobs_list) == 0:
+        temp_jobs_list.append("None")
+    # temp_details = []
+    # for job_entry in temp_jobs_list:
+    #     temp_details.append(job_entry["description"])
+    return temp_jobs_list
+
+def check_location(location, title):
     if not any(term in location.lower() for term in acceptable_locations):
         return False
     if ("india") in location.lower():
@@ -64,6 +95,14 @@ def check_location(location, title):
     if ("telugu") in title.lower():
         return False
     return True
+
+def scrollToBottom():
+    footer_locator = (By.CSS_SELECTOR, "footer")
+    wait = get_wait(driver)
+    footer_element = wait.until(EC.presence_of_element_located(footer_locator))
+    time.sleep(2)
+    driver.execute_script("arguments[0].scrollIntoView()", footer_element)
+    time.sleep(2)
 
 # Scraper functions and niche helpers---------------------------------
 def scrape_deltamath(driver):
@@ -175,6 +214,7 @@ def scrape_coloradodoe(driver):
     for job in job_listings:
         if "Job Title" not in job.text :         
             temp_job_list.append(job.text)
+    jobs_list_check(temp_job_list)
     return temp_job_list
 
 def scrape_proximity_learning(driver):
@@ -188,6 +228,7 @@ def scrape_proximity_learning(driver):
         if check_location(location, title) == False:
             continue
         temp_jobs_list.append(f"{title} - {location}")
+    jobs_list_check(temp_jobs_list)
     return temp_jobs_list
 
 def scrape_abre(driver):
@@ -198,6 +239,7 @@ def scrape_abre(driver):
         lines = job.text.split("\n")
         title = lines[0] if len(lines) > 0 else ""
         temp_jobs_list.append(f"{title}")
+    jobs_list_check(temp_jobs_list)
     return temp_jobs_list
 
 def parse_khan_academy(jobs_list):
@@ -221,7 +263,7 @@ def scrape_khan(driver):
     return parse_khan_academy(jobs_list)
 
 def scrape_powerschool(driver):
-    return "Have to check their <a href='https://www.powerschool.com/company/careers/?location=US--Remote' target=_blank >website</a>"
+    return "None - all tech jobs are India"
 
 def scrape_pearson(driver):
     modal_locator = (By.ID, "onetrust-accept-btn-handler")
@@ -303,7 +345,7 @@ def parse_macmillan(jobs_list):
         temp_jobs_list.append(f"{title} - {location} - {location2}")
     jobs_list_check(temp_jobs_list)
     if len(temp_jobs_list) == 0:
-        temp_jobs_list.append("none")
+        temp_jobs_list.append("None")
     return temp_jobs_list
 
 def scrape_macmillan(driver):
@@ -321,18 +363,19 @@ def scrape_masteryprep(driver):
     jobs_list = wait.until(EC.presence_of_all_elements_located(jobs_locator))
     temp_jobs_list = []
     for job in jobs_list:
-        print(job.text)
+        # print(job.text)
         lines = job.text.split("\n")
-        print(lines)
+        # print(lines)
         title, location = ""
         if len(lines) > 1:
             title = lines[0] 
             location = lines[1]
-            print(title,location)
+            # print(title,location)
         if len(title) != 0:
             temp_jobs_list.append(f"{title} - {location}")
     # jobs_list_check(temp_jobs_list)
-    return temp_jobs_list
+    # return temp_jobs_list
+    return None
 
 def scrape_greenouse(driver):
     locator = (By.CLASS_NAME, "job-post")
@@ -341,11 +384,11 @@ def scrape_greenouse(driver):
     jobs_texts = (job.text for job in jobs_list)
     return parse_goguardian(jobs_texts)
 
-def scrape_promethean():
+def scrape_promethean(driver):
     # none sales and bsuiness jobs are not US based
     return None
 
-def scrape_anthology():
+def scrape_anthology(driver):
     return None
     # no tech jbos in US
 
@@ -372,19 +415,37 @@ def scrape_greatMinds(driver):
     jobs_list = list.find_elements(*jobs_locator)
     return parse_greatMinds(jobs_list)
 
-# Todo: imaginelearning, schoolai, noredink, blackbaud, timely, turnitin, collegeboard, cengagegroup, adtalem, scholastic, 
+def scrape_curriculumAssociates(driver):
+    return "None - all tech jobs in India"
+
+def scrape_edtechcom(driver):
+    locator = (By.CSS_SELECTOR, "#listings a")
+    wait = get_wait(driver)
+    scrollToBottom()
+    jobs_list = wait.until(EC.presence_of_all_elements_located(locator))
+    return parse_aggregator_info(jobs_list)
+
+# Todo: retry masteryprep, imaginelearning, schoolai, noredink, blackbaud, timely, turnitin, collegeboard, cengagegroup, adtalem, scholastic, adams county, mapleton
 website_list = [
+    {"url": "https://www.edtech.com/jobs/software-engineer-jobs?ListingAge=Last%2014%20days&Country=United%20States",
+     "name": "Edtech.com",
+     "scraper": scrape_edtechcom},
+    # {"url": "https://curriculumassociates.wd5.myworkdayjobs.com/External?jobFamilyGroup=2dd225c058cb0101b12d250db9000000&jobFamilyGroup=2dd225c058cb0101b12d2641b2550000",
+    #  "name": "Curriculum Associates",
+    #  "scraper": scrape_curriculumAssociates},
     # {"url": "https://greatminds.recruitee.com/?jobs-c88dea0d%5Btab%5D=all",
     #  "name": "Great Minds", 
     #  "scraper": scrape_greatMinds},
-    #  {"url": "", "name": "Blackboard/Anthology", "scraper": scrape_anthology},
+    #  {"url": "https://careers.anthology.com/search/jobs", 
+    #   "name": "Blackboard/Anthology", 
+    #   "scraper": scrape_anthology},
     # {"url": "https://www.prometheanworld.com/about-us/careers/", 
     #  "name": "Promethean", 
     #  "scraper": scrape_promethean},
     # {"url": "https://www.masteryprep.com/join-team/#Openings",
     #  "name": "MasteryPrep",
-    #  "scraper": scrape_masteryprep,
-    # NOT ACTUALLY PULLING TEXT FROM WEB ELEMENT FOR SOME REASON},
+    #  "scraper": scrape_masteryprep},
+    # # NOT ACTUALLY PULLING TEXT FROM WEB ELEMENT FOR SOME REASON
     # {"url": "https://recruiting.ultipro.com/HOL1002HPHM/JobBoard/be27b89b-3cb9-491f-a1b0-42f8b077a9dd/?q=&o=postedDateDesc&w=&wc=&we=&wpst=&f4=P3uiKTJuwU-EMui9Ye7png&f5=Z6VUAqvr8UOWHe2Wz3tZ7w",
     #  "name": "Macmillan Learning",
     #  "scraper": scrape_macmillan},
@@ -458,16 +519,21 @@ website_list = [
 ]
 
 
-# chrome_options = webdriver.ChromeOptions()
-# prefs = {"profile.managed_default_content_settings.images": 2}
-# chrome_options.add_experimental_option("prefs", prefs)
-# driver = webdriver.Chrome(options=chrome_options)
+chrome_options = webdriver.ChromeOptions()
+prefs = {"profile.managed_default_content_settings.images": 2}
+chrome_options.add_experimental_option("prefs", prefs)
+chrome_options.add_argument("--disable-logging")
+chrome_options.add_argument("--disable-sync")
+chrome_options.add_argument("--disable-component-extensions-with-background-pages")
+chrome_options.add_argument("log-level=3")
+driver = webdriver.Chrome(options=chrome_options)
 
-driver = webdriver.Chrome()
+# driver = webdriver.Chrome()
 
 all_results = {}
 
 for site in website_list:
+    print("Scraping: ", site["name"])
     driver.get(site["url"])
     try:
         results = site["scraper"](driver)
@@ -478,7 +544,7 @@ for site in website_list:
     except Exception as e:
         # print(f"Error with {site['name']}: {e}")
         all_results[site['name']] = {
-            'jobs': [f"Errof: {e}"],
+            'jobs': [f"Error: {e}"],
             'url': site['url']
         }
         
@@ -495,7 +561,13 @@ for company, data in all_results.items():
     company_sections += f'<div class="company-section">\n'
     company_sections += f'  <div class="company-header"><h2 class="company-name">{company}</h2></div>\n'
     for job in data['jobs']:
-        company_sections += f'  <div class="job-item">{job}</div>\n'
+        if isinstance(job, dict):
+            href = job.get('href')
+            info = job.get("description")
+            company_sections += f'  <div class="job-item"><a href="{href}" target="_blank">{info}</a></div>\n'
+        elif isinstance(job, str):
+            company_sections += f'  <div class="job-item">{job}</div>\n'
+        # else:
     company_sections += f'  <a href="{data["url"]}" target="_blank" class="view-link">View All Openings →</a>\n'
     company_sections += '</div>\n'
 
