@@ -602,7 +602,7 @@ for company, data in all_results.items():
         if isinstance(job, dict):
             href = job.get('href')
             info = job.get("description")
-            company_sections += f'  <div class="job-item"><a href="{href}" target="_blank">{info}</a></div>\n'
+            company_sections += f'  <a href="{href}" target="_blank"><div class="job-item">{info}</div></a>\n'
         elif isinstance(job, str):
             company_sections += f'  <div class="job-item">{job}</div>\n'
         # else:
