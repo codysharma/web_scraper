@@ -2,3 +2,4 @@
 ToDo  
 -make scraper into object methods for which I can paramaterize the websites as args  
 -separate website list into separate directory with each file  
+-debug edmentum, edtech.com
