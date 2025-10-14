@@ -66,6 +66,34 @@ def parse_job_info(jobs):
         temp_jobs_list.append("none")
     return temp_jobs_list
 
+def parse_job_info_with_link_text(job, job_entry):
+    lines = job.text.split("\n")
+    title = lines[0]
+    location = lines[1]
+    job_entry["description"] = f"{title} - {location}"
+
+def add_href_to_job_entry(job, job_entry):
+    try:
+        if job.get_attribute("href"):
+            job_entry['href'] = job.get_attribute("href")
+        elif job.find_element(By.TAG_NAME, "a"):
+            link_element = job.find_element(By.TAG_NAME, "a")
+            job_entry['href'] = link_element.get_attribute("href")
+    except Exception:
+        job_entry['href'] = None
+
+def parse_job_info_with_link(jobs_list):
+    temp_jobs_list = []
+    for job in jobs_list:
+        job_entry = {}
+        parse_job_info_with_link_text(job, job_entry)
+        add_href_to_job_entry(job, job_entry)
+        temp_jobs_list.append(job_entry)
+    jobs_aggregator_list_check(temp_jobs_list, key="description")
+    if len(temp_jobs_list) == 0:
+        temp_jobs_list.append("None")
+    return temp_jobs_list
+
 def jobs_aggregator_list_check(jobs_list, key, excluded_terms=excluded_terms):
     jobs_list[:] = [
         job for job in jobs_list 
@@ -86,10 +114,7 @@ def parse_aggregator_info(jobs_list):
         location = lines[2]
         salary = lines[4]
         job_entry["description"] = f"{title} at {company} - {location} - {salary}"
-        try:
-            job_entry['href'] = job.get_attribute("href")
-        except Exception:
-            job_entry['href'] = None
+        add_href_to_job_entry(job, job_entry)
         temp_jobs_list.append(job_entry)
     jobs_aggregator_list_check(temp_jobs_list, key="description")
     if len(temp_jobs_list) == 0:
@@ -112,6 +137,12 @@ def scrollToBottom():
     time.sleep(2)
     driver.execute_script("arguments[0].scrollIntoView()", footer_element)
     time.sleep(2)
+
+def deal_with_iframes(driver, frame_index):
+    locator_iframe = (By.TAG_NAME, "iframe")
+    wait = get_wait(driver)
+    iframes = wait.until(EC.presence_of_all_elements_located(locator_iframe))
+    driver.switch_to.frame(iframes[frame_index])
 
 # Parsers - site specific----------------------------
 
@@ -237,6 +268,24 @@ def parse_jeffco(jobs_list):
         temp_jobs_list.append("none")
     return temp_jobs_list
 
+def parse_imagine_learning(jobs_list):
+    temp_jobs_list = []
+    for job in jobs_list:
+        job_entry = {}
+        lines = job.text.split("\n")
+        title = lines[0]
+        location = lines[1]
+        job_entry["description"] = f"{title} - {location}"
+        try:
+            link_element = job.find_element(By.TAG_NAME, "a")
+            job_entry['href'] = link_element.get_attribute("href")
+        except Exception:
+            job_entry['href'] = None
+        temp_jobs_list.append(job_entry)
+    jobs_aggregator_list_check(temp_jobs_list, key="description")
+    if len(temp_jobs_list) == 0:
+        temp_jobs_list.append("None")
+    return temp_jobs_list
 
 # Scrapers-----------------------------------------
 
@@ -353,6 +402,12 @@ def scrape_guild(driver):
     # client side rendering makes this not work.
     return
 
+def scrape_imagine_learning(driver):
+    locator = (By.CSS_SELECTOR, ".jv-job-list li")
+    wait = get_wait(driver)
+    jobs_list = wait.until(EC.presence_of_all_elements_located(locator))
+    return parse_imagine_learning(jobs_list)
+
 def scrape_jeffco_schools(driver):
     locator_show_all_jobs = (By.ID, "HRS_SCH_WRK$0_row_0")
     locator_search_text_box = (By.XPATH, "/html/body/form/div[2]/div[4]/div[2]/div/div/div/div/div[2]/section/div/div[1]/div/div/div/div[1]/div[1]/div/div[2]/input")
@@ -411,6 +466,13 @@ def scrape_masteryprep(driver):
 def scrape_newsela(driver):
     return scrape_greenouse(driver)
 
+def scrape_noRedInk(driver):
+    locator = (By.CSS_SELECTOR, ".opening")
+    wait = get_wait(driver)
+    deal_with_iframes(driver, 1)
+    jobs_list = wait.until(EC.visibility_of_all_elements_located(locator))
+    return parse_job_info_with_link(jobs_list)
+
 def scrape_pairin(driver):
     wait = get_wait(driver)
     element = wait.until(EC.presence_of_element_located((By.XPATH, "/html/body/div[1]/main/section/div[6]/h4")))
@@ -455,6 +517,12 @@ def scrape_savvas(driver):
     jobs_list = wait.until(EC.presence_of_all_elements_located(locator))
     return parse_savvas(jobs_list)
 
+def scrape_schoolai(driver):
+    locator = (By.CLASS_NAME, "css-aapqz6")
+    wait = get_wait(driver)
+    jobs_list = wait.until(EC.presence_of_all_elements_located(locator))
+    return parse_job_info_with_link(jobs_list)
+
 def scrape_skyward(driver):
     locator = (By.CLASS_NAME, "opening-jobs")
     wait = get_wait(driver)
@@ -462,9 +530,22 @@ def scrape_skyward(driver):
     return parse_job_info(jobs_list)
 
 
-
-# Todo: retry masteryprep, imaginelearning, schoolai, noredink, blackbaud, timely, turnitin, collegeboard, cengagegroup, adtalem, scholastic, adams county, mapleton
+# Todo: retry masteryprep, blackbaud, timely, turnitin, collegeboard, cengagegroup, adtalem, scholastic, adams county, mapleton
 website_list = [
+    # {"url": "",
+    #  "name": "",
+    #  "scraper": },
+
+
+    # {"url": "https://www.noredink.com/about/jobs/",
+    #  "name": "NoRedInk",
+    #  "scraper": scrape_noRedInk},
+    # {"url": "https://ats.rippling.com/schoolai/jobs?fbp=fb.1.1748892812325.371522121602605846&searchQuery=&workplaceType=&country=US&state=&city=&page=0&pageSize=20",
+    #  "name": "schoolai",
+    #  "scraper": scrape_schoolai},
+    # {"url": "https://jobs.jobvite.com/imagine-learning/jobs/viewall",
+    #  "name": "Imagine Learning",
+    #  "scraper": scrape_imagine_learning},
     # {"url": "https://www.edtech.com/jobs/software-engineer-jobs?ListingAge=Last%2014%20days&Country=United%20States",
     #  "name": "Edtech.com",
     #  "scraper": scrape_edtechcom},
