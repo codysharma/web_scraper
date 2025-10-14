@@ -4,4 +4,4 @@ ToDo
 -separate website list into separate directory with each file  
 -debug edmentum, edtech.com
 
-![Preview Image](img/preview1.png)
+![Preview Image](img/Preview1.PNG)
