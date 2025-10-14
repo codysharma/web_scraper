@@ -28,10 +28,6 @@ color: #1a1a1a;
 font-size: 32px;
 margin-bottom: 10px;
 }
-.timestamp {
-color: #666;
-font-size: 14px;
-}
 .company-section {
 background: white;
 padding: 25px;
@@ -50,7 +46,7 @@ border-bottom: 2px solid #e0e0e0;
 .company-name {
 font-size: 24px;
 font-weight: 600;
-color: #2563eb;
+color: #000000;
 }
 .job-count {
 background: #2563eb;
@@ -84,4 +80,33 @@ transition: background 0.2s;
 }
 .view-link:hover {
 background: #1d4ed8;
+}
+#companies-container {
+background: white;
+padding: 25px;
+border-radius: 12px;
+box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+margin-bottom: 20px;
+max-width: 25%;
+max-height: fit-content;
+}
+#companies-container li{
+margin-left: 1rem;
+/* background: #f8fafc;
+border-left: 4px solid #2563eb; */
+}
+#companies-list-header {
+display: flex;
+justify-content: space-between;
+align-items: center;
+margin-bottom: 20px;
+padding-bottom: 15px;
+border-bottom: 2px solid #e0e0e0;
+}
+.content {
+    display: inline-flex;
+}
+#jobs-container {
+max-width: 75%;
+margin-right: 1rem;
 }

@@ -9,7 +9,15 @@
         <header>
             <h1>Cody Job Board</h1>
         </header>
-        {{ company_sections }}
+        <div class="content">
+            <div id="jobs-container">
+            {{ company_sections }}
+            </div>
+            <div id="companies-container">
+                <h2 class="company-name" id="companies-list-header">Companies Checked</h2>
+                {{ companies_list }}
+            </div>
+        </div>
     </div>
 </body>
 </html>

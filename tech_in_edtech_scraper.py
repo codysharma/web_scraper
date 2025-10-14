@@ -465,9 +465,9 @@ def scrape_skyward(driver):
 
 # Todo: retry masteryprep, imaginelearning, schoolai, noredink, blackbaud, timely, turnitin, collegeboard, cengagegroup, adtalem, scholastic, adams county, mapleton
 website_list = [
-    {"url": "https://www.edtech.com/jobs/software-engineer-jobs?ListingAge=Last%2014%20days&Country=United%20States",
-     "name": "Edtech.com",
-     "scraper": scrape_edtechcom},
+    # {"url": "https://www.edtech.com/jobs/software-engineer-jobs?ListingAge=Last%2014%20days&Country=United%20States",
+    #  "name": "Edtech.com",
+    #  "scraper": scrape_edtechcom},
     # {"url": "https://curriculumassociates.wd5.myworkdayjobs.com/External?jobFamilyGroup=2dd225c058cb0101b12d250db9000000&jobFamilyGroup=2dd225c058cb0101b12d2641b2550000",
     #  "name": "Curriculum Associates",
     #  "scraper": scrape_curriculumAssociates},
@@ -569,9 +569,12 @@ driver = webdriver.Chrome(options=chrome_options)
 # driver = webdriver.Chrome()
 
 all_results = {}
+comprehensive_company_list = []
+ordered_website_list = sorted(website_list, key=lambda x: x["name"].lower())
 
-for site in website_list:
+for site in ordered_website_list:
     print("Scraping: ", site["name"])
+    comprehensive_company_list.append(site["name"])
     driver.get(site["url"])
     try:
         results = site["scraper"](driver)
@@ -588,11 +591,17 @@ for site in website_list:
         
 driver.quit()
 
+ordered_company_list = sorted(comprehensive_company_list)
+
 # export to generated html file
 results_dir = os.path.join(os.getcwd(), "front_end")
 template_file = os.path.join(results_dir, "template.html")
 with open(template_file, "r", encoding="utf-8") as f:
     template = f.read()
+
+companies_list = ""
+for company in ordered_company_list:
+    companies_list += f'<li>{company}</li>'
 
 company_sections = ""
 for company, data in all_results.items():
@@ -609,11 +618,11 @@ for company, data in all_results.items():
     company_sections += f'  <a href="{data["url"]}" target="_blank" class="view-link">View All Openings →</a>\n'
     company_sections += '</div>\n'
 
-# html_content = template.replace("{{ timestamp }}", datetime.now().strftime("%B %d, %Y at %I:%M %p"))
-html_content = template.replace("{{ company_sections }}", company_sections)
+jobs_content = template.replace("{{ company_sections }}", company_sections)
+jobs_content= jobs_content.replace("{{ companies_list }}", companies_list)
 
 output_file = os.path.join(results_dir, "job_results.html")
 with open(output_file, "w", encoding="utf-8") as f:
-    f.write(html_content)
+    f.write(jobs_content)
 
 webbrowser.open(f"file://{output_file}")
