@@ -591,10 +591,12 @@ def scrape_turnitin(driver):
     return jobs_list
 
 def scrape_mcgraw_hill(driver):
-    
+
     return None
 
 # Todo: retry masteryprep, cengagegroup, adtalem, scholastic, adams county, mapleton, mcgraw hill
+# -debug edmentum, edtech.com
+# add links to the earliest ones
 website_list = [
     # {"url": "",
     #  "name": "",
