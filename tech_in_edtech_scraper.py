@@ -102,7 +102,9 @@ def jobs_aggregator_list_check(jobs_list, key, excluded_terms=excluded_terms):
     ]
     jobs_list[:] = [
         job for job in jobs_list 
-        if any(term in job[key].lower() for term in acceptable_locations)
+        if any(re.search(r'\b' + re.escape(term) + r'\b', job[key].lower())
+               for term in acceptable_locations)
+        # if any(term in job[key].lower() for term in acceptable_locations)
     ]
 
 def parse_aggregator_info(jobs_list):
@@ -240,6 +242,21 @@ def parse_macmillan(jobs_list):
         temp_jobs_list.append("None")
     return temp_jobs_list
 
+def parse_mgcraw_hill(jobs_list):
+    temp_jobs_list = []
+    for job in jobs_list:
+        job_entry = {}
+        lines = job.text.split("\n")
+        title = lines[0]
+        location = lines[6]
+        job_entry["description"] = f"{title} - {location}"
+        add_href_to_job_entry(job, job_entry)
+        temp_jobs_list.append(job_entry)
+    jobs_title_check_with_key(temp_jobs_list, key="description")
+    if len(temp_jobs_list) == 0:
+        temp_jobs_list.append("None")
+    return temp_jobs_list
+
 def parse_greatMinds(jobs_list):
     temp_jobs_list = []
     row_header = "Job title Work model Location"
@@ -327,6 +344,12 @@ def scrape_abre(driver):
         temp_jobs_list.append(f"{title}")
     jobs_title_check(temp_jobs_list)
     return temp_jobs_list
+
+def scrape_adtalem(driver):
+    locator = (By.CLASS_NAME, "attrax-vacancy-tile")
+    wait = get_wait(driver)
+    jobs_list = wait.until(EC.presence_of_all_elements_located(locator))
+    return parse_job_info_with_link(jobs_list)
 
 def scrape_anthology(driver):
     return None
@@ -503,6 +526,12 @@ def scrape_masteryprep(driver):
     # return temp_jobs_list
     return None
 
+def scrape_mcgraw_hill(driver):
+    locator = (By.CLASS_NAME, "mat-expansion-panel")
+    wait = get_wait(driver)
+    jobs_list = wait.until(EC.visibility_of_all_elements_located(locator))
+    return parse_mgcraw_hill(jobs_list)
+
 def scrape_newsela(driver):
     return scrape_greenouse(driver)
 
@@ -549,7 +578,7 @@ def scrape_proximity_learning(driver):
 def scrape_public_schools_workday(driver):
     wait = get_wait(driver)
     job_listings = wait.until(EC.presence_of_all_elements_located((By.CSS_SELECTOR, "ul h3")))
-    return parse_job_info(job_listings)
+    return parse_job_info_with_link(job_listings)
 
 def scrape_savvas(driver):
     locator = (By.CSS_SELECTOR, ".ant-list-items li")
@@ -590,20 +619,22 @@ def scrape_turnitin(driver):
     ]
     return jobs_list
 
-def scrape_mcgraw_hill(driver):
-
-    return None
-
-# Todo: retry masteryprep, cengagegroup, adtalem, scholastic, adams county, mapleton, mcgraw hill
+# Todo: retry masteryprep, scholastic, adams county, mapleton, mcgraw hill
 # -debug edmentum, edtech.com
 # add links to the earliest ones
 website_list = [
     # {"url": "",
     #  "name": "",
     #  "scraper": },
-     {"url": "https://careers.mheducation.com/jobs?page=1&locations=,,United%20States&tags2=Remote&categories=Technology&limit=100",
-     "name": "McGraw Hill",
-     "scraper": scrape_mcgraw_hill},
+    {"url": "https://careers.adtalem.com/jobs?options=217%2C204&page=1&size=50",
+     "name": "Adtalem",
+     "scraper": scrape_adtalem},
+    # {"url": "https://cengage.wd5.myworkdayjobs.com/CengageNorthAmericaCareers?jobFamilyGroup=5cbb6d959a9e0174784c722a280adc5a&jobFamilyGroup=5cbb6d959a9e0169db1a6f2a280ad45a",
+    #  "name": "Cengage",
+    #  "scraper": scrape_public_schools_workday}
+    #  {"url": "https://careers.mheducation.com/jobs?page=1&locations=,,United%20States&tags2=Remote&categories=Technology&limit=100",
+    #  "name": "McGraw Hill",
+    #  "scraper": scrape_mcgraw_hill},
     # {"url": "https://collegeboard.wd1.myworkdayjobs.com/en-US/Careers?locations=5d2a8b008de5013111b33268b9008210",
     #  "name": "College Board", 
     #  "scraper": scrape_collegeboard},
