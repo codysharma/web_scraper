@@ -38,6 +38,16 @@ def check_for_button_next(driver, locator):
         print("No next button present")
         return False
 
+def infinite_scroll(driver):
+    last_height = driver.execute_script("return document.body.scrollHeight")
+    while True:
+        scrollToBottom()
+        # time.sleep(1)
+        new_height = driver.execute_script("return document.body.scrollHeight")
+        if new_height == last_height:
+            break
+        last_height = new_height
+
 def jobs_title_check(jobs_list, excluded_terms=excluded_terms):
     jobs_list[:] = [
         job for job in jobs_list 
@@ -150,6 +160,7 @@ def deal_with_iframes(driver, frame_index):
     wait = get_wait(driver)
     iframes = wait.until(EC.presence_of_all_elements_located(locator_iframe))
     driver.switch_to.frame(iframes[frame_index])
+
 
 # Parsers - site specific----------------------------
 
@@ -355,12 +366,15 @@ def scrape_adtalem(driver):
     return parse_job_info_with_link(jobs_list)
 
 def scrape_anthology(driver):
-    return None
-    # no tech jbos in US
+    return "None, tech jobs only in India"
 
 def scrape_blackbaud(driver):
     locator = (By.CLASS_NAME, "jobs-list-item")
+    locator_next_button = (By.XPATH, "/html/body/div[2]/div[2]/section[6]/div/div/div[2]/div/div/section/div[5]/div/div[2]/div/div[4]/button[2]")
     wait = get_wait(driver)
+    next_button = wait.until(EC.element_to_be_clickable(locator_next_button))
+    next_button.click()
+    time.sleep(3)
     jobs_list = wait.until(EC.visibility_of_all_elements_located(locator))
     return parse_blackbaud(jobs_list)
 
@@ -380,23 +394,13 @@ def scrape_coloradodoe(driver):
     locator = (By.CLASS_NAME, "job-table-title")
     wait = get_wait(driver)
     job_listings = wait.until(EC.presence_of_all_elements_located(locator))
-    temp_job_list = []
-    for job in job_listings:
-        if "Job Title" not in job.text :         
-            temp_job_list.append(job.text)
-    jobs_title_check(temp_job_list)
-    return temp_job_list
+    return parse_job_info_with_link(job_listings)
 
 def scrape_coursera(driver):
     title_locator = (By.CSS_SELECTOR, ".job-search-results-title a")
     wait = get_wait(driver)
     jobs_list = wait.until(EC.presence_of_all_elements_located(title_locator))
-    temp_jobs_list = []
-    for job in jobs_list:
-        title = job.text.strip()
-        if title:
-            temp_jobs_list.append(title)
-    return jobs_title_check(temp_jobs_list)
+    return parse_job_info_with_link(jobs_list)
 
 def scrape_curriculumAssociates(driver):
     return "None - all tech jobs in India"
@@ -557,29 +561,24 @@ def scrape_pairin(driver):
 
 def scrape_pearson(driver):
     modal_locator = (By.ID, "onetrust-accept-btn-handler")
-    # modal that is a problem to click
-    return "Have to check their <a href='https://pearson.jobs/locations/usa/schedule/full-time/workplace-type/remote/jobs/' target=_blank >website</a>"
+    locator_jobs = (By.CSS_SELECTOR, "#main li")
+    wait = get_wait(driver)
+    modal_closer = wait.until(EC.element_to_be_clickable(modal_locator))
+    modal_closer.click()
+    jobs_list = wait.until(EC.presence_of_all_elements_located(locator_jobs))
+    return parse_job_info_with_link(jobs_list)
 
 def scrape_powerschool(driver):
     return "None - all tech jobs are India"
 
 def scrape_promethean(driver):
-    # none sales and bsuiness jobs are not US based
-    return None
+    return "None. tech and operations jobs are not US based."
 
 def scrape_proximity_learning(driver):
-    locator = (By.CSS_SELECTOR, "ul li")
+    locator = (By.CLASS_NAME, "fabric-2orkpc-root")
     wait = get_wait(driver)
-    temp_jobs_list = []
-    for job in wait.until(EC.presence_of_all_elements_located(locator)):
-        lines = job.text.split("\n")
-        title = lines[0] if len(lines) > 0 else ""
-        location = lines[2] if len(lines) > 2 else ""
-        if check_location(location, title) == False:
-            continue
-        temp_jobs_list.append(f"{title} - {location}")
-    jobs_title_check(temp_jobs_list)
-    return temp_jobs_list
+    jobs_list = wait.until(EC.presence_of_all_elements_located(locator))
+    return parse_job_info_with_link(jobs_list)
 
 def scrape_public_schools_workday(driver):
     wait = get_wait(driver)
@@ -612,9 +611,7 @@ def scrape_timely_schools(driver):
     return parse_job_info_with_link(jobs_list)
 
 def scrape_turnitin(driver):
-    scrollToBottom()
-    scrollToBottom()
-    scrollToBottom()
+    infinite_scroll(driver)
     locator = (By.XPATH, "/html/body/div[1]/div/main/section[2]/div/div//a")
     wait = get_wait(driver)
     jobs_list = wait.until(EC.visibility_of_all_elements_located(locator))
@@ -623,143 +620,144 @@ def scrape_turnitin(driver):
         job for job in jobs_list 
         if re.search(r"\b(u\.?s\.?|usa)\b", job['description'], re.IGNORECASE)
     ]
+    if len(jobs_list) == 0:
+        jobs_list.append("None")
     return jobs_list
 
 # Todo: retry masteryprep
-# -debug edmentum, edtech.com
 # add links to the earliest ones
 website_list = [
     # {"url": "",
     #  "name": "",
     #  "scraper": },
-    {"url": "https://www.applitrack.com/mapleton/onlineapp/default.aspx?all=1",
-     "name": "Mapleton Public Schools", 
-     "scraper": scrape_mapleton},
-    {"url": "https://www.applitrack.com/adams12/onlineapp/default.aspx?all=1",
-     "name": "Adams County Schools",
-     "scraper": scrape_adamscounty},
-    {"url": "https://scholastic.wd5.myworkdayjobs.com/External?jobFamilyGroup=b56865245e494669bad1614c8bd5e1bf&jobFamilyGroup=07ac9b2f73ee4662b9ebf744f4860a0f",
-     "name": "Scholastic",
-     "scraper": scrape_public_schools_workday}
-    {"url": "https://careers.adtalem.com/jobs?options=217%2C204&page=1&size=50",
-     "name": "Adtalem",
-     "scraper": scrape_adtalem},
-    {"url": "https://cengage.wd5.myworkdayjobs.com/CengageNorthAmericaCareers?jobFamilyGroup=5cbb6d959a9e0174784c722a280adc5a&jobFamilyGroup=5cbb6d959a9e0169db1a6f2a280ad45a",
-     "name": "Cengage",
-     "scraper": scrape_public_schools_workday}
-     {"url": "https://careers.mheducation.com/jobs?page=1&locations=,,United%20States&tags2=Remote&categories=Technology&limit=100",
-     "name": "McGraw Hill",
-     "scraper": scrape_mcgraw_hill},
-    {"url": "https://collegeboard.wd1.myworkdayjobs.com/en-US/Careers?locations=5d2a8b008de5013111b33268b9008210",
-     "name": "College Board", 
-     "scraper": scrape_collegeboard},
+    # {"url": "https://www.applitrack.com/mapleton/onlineapp/default.aspx?all=1",
+    #  "name": "Mapleton Public Schools", 
+    #  "scraper": scrape_mapleton},
+    # {"url": "https://www.applitrack.com/adams12/onlineapp/default.aspx?all=1",
+    #  "name": "Adams County Schools",
+    #  "scraper": scrape_adamscounty},
+    # {"url": "https://scholastic.wd5.myworkdayjobs.com/External?jobFamilyGroup=b56865245e494669bad1614c8bd5e1bf&jobFamilyGroup=07ac9b2f73ee4662b9ebf744f4860a0f",
+    #  "name": "Scholastic",
+    #  "scraper": scrape_public_schools_workday},
+    # {"url": "https://careers.adtalem.com/jobs?options=217%2C204&page=1&size=50",
+    #  "name": "Adtalem",
+    #  "scraper": scrape_adtalem},
+    # {"url": "https://cengage.wd5.myworkdayjobs.com/CengageNorthAmericaCareers?jobFamilyGroup=5cbb6d959a9e0174784c722a280adc5a&jobFamilyGroup=5cbb6d959a9e0169db1a6f2a280ad45a",
+    #  "name": "Cengage",
+    #  "scraper": scrape_public_schools_workday},
+    #  {"url": "https://careers.mheducation.com/jobs?page=1&locations=,,United%20States&tags2=Remote&categories=Technology&limit=100",
+    #  "name": "McGraw Hill",
+    #  "scraper": scrape_mcgraw_hill},
+    # {"url": "https://collegeboard.wd1.myworkdayjobs.com/en-US/Careers?locations=5d2a8b008de5013111b33268b9008210",
+    #  "name": "College Board", 
+    #  "scraper": scrape_collegeboard},
     {"url": "https://careers.smartrecruiters.com/TurnitinLLC",
      "name": "Turnitin",
      "scraper": scrape_turnitin},
-    {"url": "https://www.timelyschools.com/careers",
-     "name": "Timely Schools",
-     "scraper": scrape_timely_schools},
-    {"url": "https://careers.blackbaud.com/us/en?_gl=1*andnev*_gcl_au*MTE3NjM2Njg3Mi4xNjg3NDU5Nzk1&_ga=2.179888804.1463122241.1687459796-541182962.1687459796",
-     "name": "Blackbaud",
-     "scraper": scrape_blackbaud},
-    {"url": "https://www.noredink.com/about/jobs/",
-     "name": "NoRedInk",
-     "scraper": scrape_noRedInk},
-    {"url": "https://ats.rippling.com/schoolai/jobs?fbp=fb.1.1748892812325.371522121602605846&searchQuery=&workplaceType=&country=US&state=&city=&page=0&pageSize=20",
-     "name": "schoolai",
-     "scraper": scrape_schoolai},
-    {"url": "https://jobs.jobvite.com/imagine-learning/jobs/viewall",
-     "name": "Imagine Learning",
-     "scraper": scrape_imagine_learning},
-    {"url": "https://www.edtech.com/jobs/software-engineer-jobs?ListingAge=Last%2014%20days&Country=United%20States",
-     "name": "Edtech.com",
-     "scraper": scrape_edtechcom},
-    {"url": "https://curriculumassociates.wd5.myworkdayjobs.com/External?jobFamilyGroup=2dd225c058cb0101b12d250db9000000&jobFamilyGroup=2dd225c058cb0101b12d2641b2550000",
-     "name": "Curriculum Associates",
-     "scraper": scrape_curriculumAssociates},
-    {"url": "https://greatminds.recruitee.com/?jobs-c88dea0d%5Btab%5D=all",
-     "name": "Great Minds", 
-     "scraper": scrape_greatMinds},
-     {"url": "https://careers.anthology.com/search/jobs", 
-      "name": "Blackboard/Anthology", 
-      "scraper": scrape_anthology},
-    {"url": "https://www.prometheanworld.com/about-us/careers/", 
-     "name": "Promethean", 
-     "scraper": scrape_promethean},
-    {"url": "https://www.masteryprep.com/join-team/#Openings",
-     "name": "MasteryPrep",
-     "scraper": scrape_masteryprep},
-    # NOT ACTUALLY PULLING TEXT FROM WEB ELEMENT FOR SOME REASON
-    {"url": "https://recruiting.ultipro.com/HOL1002HPHM/JobBoard/be27b89b-3cb9-491f-a1b0-42f8b077a9dd/?q=&o=postedDateDesc&w=&wc=&we=&wpst=&f4=P3uiKTJuwU-EMui9Ye7png&f5=Z6VUAqvr8UOWHe2Wz3tZ7w",
-     "name": "Macmillan Learning",
-     "scraper": scrape_macmillan},
-    {"url": "https://job-boards.greenhouse.io/newsela",
-     "name": "Newsela",
-     "scraper": scrape_newsela},
-    {"url": "https://jobs.dayforcehcm.com/en-US/k12l/CANDIDATEPORTAL",
-     "name": "Savvas",
-     "scraper": scrape_savvas},
-    {"url": "https://job-boards.greenhouse.io/edmentum",
-     "name": "Edmentum",
-     "scraper": scrape_edmentum},
-    {"url": "https://careers.coursera.com/jobs/search?page=1&query=&department_uids%5B%5D=0b370cc4e5d8b1fba08d06720b9850aa&country_codes%5B%5D=US",
-     "name": "Coursera",
-     "scraper": scrape_coursera},
-    {"url": "https://job-boards.greenhouse.io/goguardian",
-     "name": "GoGuardian/Peardeck",
-     "scraper": scrape_goguardian},
-    {"url": "https://careers.smartrecruiters.com/Skyward1",
-     "name": "Skyward", 
-     "scraper": scrape_skyward},
-    {"url": "https://pearson.jobs/locations/usa/schedule/full-time/workplace-type/remote/jobs/",
-     "name": "Pearson",
-     "scraper": scrape_pearson},
-    {"url": "https://www.powerschool.com/company/careers/?location=US--Remote",
-     "name": "Powerschool",
-     "scraper": scrape_powerschool},
-    {"url": "https://www.khanacademy.org/careers#openings", 
-     "name": "Khan Academy",
-     "scraper": scrape_khan},
-    {"url": "https://jobs.abre.com/",
-     "name": "Abre",
-     "scraper": scrape_abre},
-    {"url": "https://proxlearn.bamboohr.com/careers",
-     "name": "Proximity Learning",
-     "scraper": scrape_proximity_learning},
-    {"url": "https://www.governmentjobs.com/careers/colorado?location[0]=denver%20metro&department[0]=Department%20of%20Education&sort=PositionTitle%7CAscending",
-     "name": "Colorado Dept of Ed",
-     "scraper": scrape_coloradodoe},
-    {"url": "https://edtechjobs.io",
-      "name": "Edtechjobs.io",
-      "scraper": scrape_edtechjobsio},
-    {"url": "https://www.deltamath.com/jobs/",
-     "name": "DeltaMath",
-     "scraper": scrape_deltamath},
-    {"url": "https://jobs.cambiumlearning.com/?size=n_50_n",
-    "name": "Cambium Learning Group",
-    "scraper": scrape_cambium},
-    {"url": "https://jobs.ashbyhq.com/magicschool/",
-    "name": "Magic School",
-    "scraper": scrape_magicschool},
-    {"url": "https://www.pairin.com/about/careers/",
-     "name": "Pairin",
-     "scraper": scrape_pairin,
-    },
-    {"url": "https://careers.jeffco.k12.co.us/psc/careers/EMPLOYEE/APPLICANT/c/HRS_HRAM_FL.HRS_CG_SEARCH_FL.GBL?FOCUS=Applicant&SiteId=3",
-     "name": "JeffCo Schools", 
-     "scraper": scrape_jeffco_schools},
-    {"url": "https://dpsjobboard.dpsk12.org/en/sites/CX_1001/jobs?lastSelectedFacet=TITLES&mode=location&selectedTitlesFacet=30%3B46",
-     "name": "Denver Public Schools",
-     "scraper": scrape_dps_aurora},
-    {"url": "https://dcsd.wd5.myworkdayjobs.com/en-US/DCSD/details/Systems-Engineer-II_Req-00077984-2?timeType=f5213912a3b710211de745c6879eb635&jobFamily=fef6e4a613001022976a2e0edb5b3686&jobFamily=fef6e4a613001022976a2c4522c13684",
-     "name": "DCSD",
-     "scraper": scrape_public_schools_workday},
-    {"url": "https://fa-epop-saasfaprod1.fa.ocs.oraclecloud.com/hcmUI/CandidateExperience/en/sites/CX_1/jobs?lastSelectedFacet=CATEGORIES&selectedCategoriesFacet=300000024830845",
-     "name": "Aurora Schools",
-     "scraper": scrape_dps_aurora},
-    {"url": "https://dsstpublicschools.wd5.myworkdayjobs.com/DSST_Careers?jobFamily=a62b5af9bc7b100114066481a8960000&jobFamily=d969b57881e70103beb07a72d629da6b&jobFamily=d969b57881e70104991d7a72d629d86b",
-     "name": "DSST System",
-     "scraper": scrape_public_schools_workday}, 
+    # {"url": "https://www.timelyschools.com/careers",
+    #  "name": "Timely Schools",
+    #  "scraper": scrape_timely_schools},
+    # {"url": "https://careers.blackbaud.com/us/en?_gl=1*andnev*_gcl_au*MTE3NjM2Njg3Mi4xNjg3NDU5Nzk1&_ga=2.179888804.1463122241.1687459796-541182962.1687459796",
+    #  "name": "Blackbaud",
+    #  "scraper": scrape_blackbaud},
+    # {"url": "https://www.noredink.com/about/jobs/",
+    #  "name": "NoRedInk",
+    #  "scraper": scrape_noRedInk},
+    # {"url": "https://ats.rippling.com/schoolai/jobs?fbp=fb.1.1748892812325.371522121602605846&searchQuery=&workplaceType=&country=US&state=&city=&page=0&pageSize=20",
+    #  "name": "SchoolAI",
+    #  "scraper": scrape_schoolai},
+    # {"url": "https://jobs.jobvite.com/imagine-learning/jobs/viewall",
+    #  "name": "Imagine Learning",
+    #  "scraper": scrape_imagine_learning},
+    # {"url": "https://www.edtech.com/jobs/software-engineer-jobs?ListingAge=Last%2014%20days&Country=United%20States",
+    #  "name": "Edtech.com",
+    #  "scraper": scrape_edtechcom},
+    # {"url": "https://curriculumassociates.wd5.myworkdayjobs.com/External?jobFamilyGroup=2dd225c058cb0101b12d250db9000000&jobFamilyGroup=2dd225c058cb0101b12d2641b2550000",
+    #  "name": "Curriculum Associates",
+    #  "scraper": scrape_curriculumAssociates},
+    # {"url": "https://greatminds.recruitee.com/?jobs-c88dea0d%5Btab%5D=all",
+    #  "name": "Great Minds", 
+    #  "scraper": scrape_greatMinds},
+    #  {"url": "https://careers.anthology.com/search/jobs", 
+    #   "name": "Blackboard/Anthology", 
+    #   "scraper": scrape_anthology},
+    # {"url": "https://www.prometheanworld.com/about-us/careers/", 
+    #  "name": "Promethean", 
+    #  "scraper": scrape_promethean},
+    # {"url": "https://www.masteryprep.com/join-team/#Openings",
+    #  "name": "MasteryPrep",
+    #  "scraper": scrape_masteryprep},
+    # # NOT ACTUALLY PULLING TEXT FROM WEB ELEMENT FOR SOME REASON
+    # {"url": "https://recruiting.ultipro.com/HOL1002HPHM/JobBoard/be27b89b-3cb9-491f-a1b0-42f8b077a9dd/?q=&o=postedDateDesc&w=&wc=&we=&wpst=&f4=P3uiKTJuwU-EMui9Ye7png&f5=Z6VUAqvr8UOWHe2Wz3tZ7w",
+    #  "name": "Macmillan Learning",
+    #  "scraper": scrape_macmillan},
+    # {"url": "https://job-boards.greenhouse.io/newsela",
+    #  "name": "Newsela",
+    #  "scraper": scrape_newsela},
+    # {"url": "https://jobs.dayforcehcm.com/en-US/k12l/CANDIDATEPORTAL",
+    #  "name": "Savvas",
+    #  "scraper": scrape_savvas},
+    # {"url": "https://job-boards.greenhouse.io/edmentum",
+    #  "name": "Edmentum",
+    #  "scraper": scrape_edmentum},
+    # {"url": "https://careers.coursera.com/jobs/search?page=1&query=&department_uids%5B%5D=0b370cc4e5d8b1fba08d06720b9850aa&country_codes%5B%5D=US",
+    #  "name": "Coursera",
+    #  "scraper": scrape_coursera},
+    # {"url": "https://job-boards.greenhouse.io/goguardian",
+    #  "name": "GoGuardian/Peardeck",
+    #  "scraper": scrape_goguardian},
+    # {"url": "https://careers.smartrecruiters.com/Skyward1",
+    #  "name": "Skyward", 
+    #  "scraper": scrape_skyward},
+    # {"url": "https://pearson.jobs/locations/usa/schedule/full-time/workplace-type/remote/jobs/",
+    #  "name": "Pearson",
+    #  "scraper": scrape_pearson},
+    # {"url": "https://www.powerschool.com/company/careers/?location=US--Remote",
+    #  "name": "Powerschool",
+    #  "scraper": scrape_powerschool},
+    # {"url": "https://www.khanacademy.org/careers#openings", 
+    #  "name": "Khan Academy",
+    #  "scraper": scrape_khan},
+    # {"url": "https://jobs.abre.com/",
+    #  "name": "Abre",
+    #  "scraper": scrape_abre},
+    # {"url": "https://proxlearn.bamboohr.com/careers",
+    #  "name": "Proximity Learning",
+    #  "scraper": scrape_proximity_learning},
+    # {"url": "https://www.governmentjobs.com/careers/colorado?location[0]=denver%20metro&department[0]=Department%20of%20Education&sort=PositionTitle%7CAscending",
+    #  "name": "Colorado Dept of Ed",
+    #  "scraper": scrape_coloradodoe},
+    # {"url": "https://edtechjobs.io",
+    #   "name": "Edtechjobs.io",
+    #   "scraper": scrape_edtechjobsio},
+    # {"url": "https://www.deltamath.com/jobs/",
+    #  "name": "DeltaMath",
+    #  "scraper": scrape_deltamath},
+    # {"url": "https://jobs.cambiumlearning.com/?size=n_50_n",
+    # "name": "Cambium Learning Group",
+    # "scraper": scrape_cambium},
+    # {"url": "https://jobs.ashbyhq.com/magicschool/",
+    # "name": "Magic School",
+    # "scraper": scrape_magicschool},
+    # {"url": "https://www.pairin.com/about/careers/",
+    #  "name": "Pairin",
+    #  "scraper": scrape_pairin,
+    # },
+    # {"url": "https://careers.jeffco.k12.co.us/psc/careers/EMPLOYEE/APPLICANT/c/HRS_HRAM_FL.HRS_CG_SEARCH_FL.GBL?FOCUS=Applicant&SiteId=3",
+    #  "name": "JeffCo Schools", 
+    #  "scraper": scrape_jeffco_schools},
+    # {"url": "https://dpsjobboard.dpsk12.org/en/sites/CX_1001/jobs?lastSelectedFacet=TITLES&mode=location&selectedTitlesFacet=30%3B46",
+    #  "name": "Denver Public Schools",
+    #  "scraper": scrape_dps_aurora},
+    # {"url": "https://dcsd.wd5.myworkdayjobs.com/en-US/DCSD/details/Systems-Engineer-II_Req-00077984-2?timeType=f5213912a3b710211de745c6879eb635&jobFamily=fef6e4a613001022976a2e0edb5b3686&jobFamily=fef6e4a613001022976a2c4522c13684",
+    #  "name": "DCSD",
+    #  "scraper": scrape_public_schools_workday},
+    # {"url": "https://fa-epop-saasfaprod1.fa.ocs.oraclecloud.com/hcmUI/CandidateExperience/en/sites/CX_1/jobs?lastSelectedFacet=CATEGORIES&selectedCategoriesFacet=300000024830845",
+    #  "name": "Aurora Schools",
+    #  "scraper": scrape_dps_aurora},
+    # {"url": "https://dsstpublicschools.wd5.myworkdayjobs.com/DSST_Careers?jobFamily=a62b5af9bc7b100114066481a8960000&jobFamily=d969b57881e70103beb07a72d629da6b&jobFamily=d969b57881e70104991d7a72d629d86b",
+    #  "name": "DSST System",
+    #  "scraper": scrape_public_schools_workday}, 
 ]
 
 
