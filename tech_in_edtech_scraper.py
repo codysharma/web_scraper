@@ -10,14 +10,21 @@ from datetime import datetime
 import os
 from object_methods import BaseMethods
 import re
+from typing import List, Dict, Any
+
+JobList = List[Dict[str, str]]
 
 # enter venv first: source env/Scripts/activate
 
 excluded_terms = ["senior", "lead", "manager", "principal", "staff", "director", "chief", "teacher", "sr", "architect", "head", "business intelligence", "therapist", "director", "president", "sales", "counsel", "vp"]
 
 acceptable_locations =[
-        "remote" , "denver" , "co" , "colorado" , "united states" , "usa" , "us"
+        "remote" , "denver" , "co" , "colorado" , "united states" , "usa" , "us", ""
     ]
+
+excluded_locations = [
+    "india", "telugu", "odisha", "karnataka", "delhi"
+]
 
 # General helpers---------------------------------------------
 def click_element(locator, driver, time = 3):
@@ -114,8 +121,26 @@ def jobs_aggregator_list_check(jobs_list, key, excluded_terms=excluded_terms):
         job for job in jobs_list 
         if any(re.search(r'\b' + re.escape(term) + r'\b', job[key].lower())
                for term in acceptable_locations)
-        # if any(term in job[key].lower() for term in acceptable_locations)
     ]
+
+    #     # Debugging---------------------------
+    # deleted_by_terms = [
+    #     job for job in jobs_list 
+    #     if any(term in job[key].lower() for term in excluded_terms)
+    # ]
+    # deleted_by_location = [
+    #     job for job in jobs_list 
+    #     if not any(re.search(r'\b' + re.escape(term) + r'\b', job[key].lower())
+    #            for term in acceptable_locations)
+    # ]
+    # if deleted_by_terms:
+    #     print(f"\n---- Deleted by excluded terms ({len(deleted_by_terms)}): ----")
+    #     for job in deleted_by_terms:
+    #         print(f"  - {job[key]}")
+    # if deleted_by_location:
+    #     print(f"\n---- Deleted by location filter ({len(deleted_by_location)}): ----")
+    #     for job in deleted_by_location:
+    #         print(f"  - {job[key]}")
 
 def parse_aggregator_info(jobs_list):
     temp_jobs_list = []
@@ -137,9 +162,9 @@ def parse_aggregator_info(jobs_list):
 def check_location(location, title):
     if not any(term in location.lower() for term in acceptable_locations):
         return False
-    if ("india") in location.lower():
-        return False
     if ("telugu") in title.lower():
+        return False
+    if any(term in location.lower() for term in excluded_locations):
         return False
     return True
 
@@ -201,31 +226,22 @@ def collect_multipage_edtechio(driver, url, locator, job_listings):
 def parse_khan_academy(jobs_list):
     temp_jobs_list = []
     for job in jobs_list:
+        job_entry = {}
         lines = job.text.split("\n")
-        title = lines[0] if len(lines) > 0 else ""
+        title = lines[0]
         location = lines[1] if len(lines) > 1 else ""
+        if not any(term in location.lower() for term in acceptable_locations):
+            print(location)
+        job_entry["description"] = f"{title} - {location}"
         if (not check_location(location, title)) or ("talent community" in title.lower()):
             continue
-        temp_jobs_list.append(f"{title} - {location}")
-    jobs_title_check(temp_jobs_list)
+        add_href_to_job_entry(job, job_entry)
+        temp_jobs_list.append(job_entry)
+    jobs_aggregator_list_check(temp_jobs_list, key="description")
     if len(temp_jobs_list) == 0:
-        temp_jobs_list.append("none")
+        temp_jobs_list.append("None")
     return temp_jobs_list
-
-def parse_goguardian(jobs_list):
-    temp_jobs_list = []
-    for job in jobs_list:
-        lines = job.split("\n")
-        title = lines[0] if len(lines) > 0 else ""
-        location = lines[1] if len(lines) > 1 else ""
-        if check_location(location, title) == False:
-            continue
-        temp_jobs_list.append(f"{title} - {location}")
-    jobs_title_check(temp_jobs_list)
-    if len(temp_jobs_list) == 0:
-        temp_jobs_list.append("none")
-    return temp_jobs_list
-
+        
 def parse_savvas(jobs_list):
     temp_jobs_list = []
     for job in jobs_list:
@@ -292,11 +308,13 @@ def parse_greatMinds(jobs_list):
 def parse_jeffco(jobs_list):
     temp_jobs_list = []
     for job in jobs_list:
+        job_entry = {}
         lines = job.text.split("\n")
         title = lines[0] if len(lines) > 0 else ""
         location = lines[2] if len(lines) > 1 else ""
-        temp_jobs_list.append(f"{title} - {location}")
-    jobs_title_check(temp_jobs_list)
+        job_entry["description"] = f"{title} - {location}"
+        temp_jobs_list.append(job_entry)
+    jobs_aggregator_list_check(temp_jobs_list, key="description")
     if len(temp_jobs_list) == 0:
         temp_jobs_list.append("none")
     return temp_jobs_list
@@ -345,21 +363,17 @@ def parse_collegeboard(jobs_list):
 
 # Scrapers-----------------------------------------
 
-def scrape_abre(driver):
+def scrape_abre(driver) -> JobList:
     locator = (By.XPATH, "/html/body/main/section[2]/div[2]/div/ul/li")
     wait = get_wait(driver)
-    temp_jobs_list = []
-    for job in wait.until(EC.presence_of_all_elements_located(locator)):
-        lines = job.text.split("\n")
-        title = lines[0] if len(lines) > 0 else ""
-        temp_jobs_list.append(f"{title}")
-    jobs_title_check(temp_jobs_list)
-    return temp_jobs_list
+    jobs_list = wait.until(EC.presence_of_all_elements_located(locator))
+    return parse_job_info_with_link(jobs_list)
 
-def scrape_adamscounty(driver):
+def scrape_adamscounty(driver) -> JobList:
+    wait = get_wait(driver)
     return "Nothing posted for tech jobs in order to test scraper."
 
-def scrape_adtalem(driver):
+def scrape_adtalem(driver) -> JobList:
     locator = (By.CLASS_NAME, "attrax-vacancy-tile")
     wait = get_wait(driver)
     jobs_list = wait.until(EC.presence_of_all_elements_located(locator))
@@ -368,7 +382,7 @@ def scrape_adtalem(driver):
 def scrape_anthology(driver):
     return "None, tech jobs only in India"
 
-def scrape_blackbaud(driver):
+def scrape_blackbaud(driver) -> JobList:
     locator = (By.CLASS_NAME, "jobs-list-item")
     locator_next_button = (By.XPATH, "/html/body/div[2]/div[2]/section[6]/div/div/div[2]/div/div/section/div[5]/div/div[2]/div/div[4]/button[2]")
     wait = get_wait(driver)
@@ -378,25 +392,25 @@ def scrape_blackbaud(driver):
     jobs_list = wait.until(EC.visibility_of_all_elements_located(locator))
     return parse_blackbaud(jobs_list)
 
-def scrape_cambium(driver):
+def scrape_cambium(driver) -> JobList:
     wait = get_wait(driver)
     jobs = wait.until(EC.presence_of_all_elements_located((By.XPATH, "/html/body/div[1]/div/div/div/div[2]/div/div[1]/div/ul/li")))
     time.sleep(1)
-    return parse_job_info(jobs)   
+    return parse_job_info_with_link(jobs)   
 
-def scrape_collegeboard(driver):
+def scrape_collegeboard(driver) -> JobList:
     wait = get_wait(driver)
     job_listings = wait.until(EC.presence_of_all_elements_located((By.CSS_SELECTOR, "ul h3")))
     # has a page 2, but couldn't get it to load correctly
     return parse_collegeboard(job_listings)
 
-def scrape_coloradodoe(driver):
+def scrape_coloradodoe(driver) -> JobList:
     locator = (By.CLASS_NAME, "job-table-title")
     wait = get_wait(driver)
     job_listings = wait.until(EC.presence_of_all_elements_located(locator))
     return parse_job_info_with_link(job_listings)
 
-def scrape_coursera(driver):
+def scrape_coursera(driver) -> JobList:
     title_locator = (By.CSS_SELECTOR, ".job-search-results-title a")
     wait = get_wait(driver)
     jobs_list = wait.until(EC.presence_of_all_elements_located(title_locator))
@@ -405,28 +419,31 @@ def scrape_coursera(driver):
 def scrape_curriculumAssociates(driver):
     return "None - all tech jobs in India"
 
-def scrape_deltamath(driver):
+def scrape_deltamath(driver) -> JobList:
     wait = get_wait(driver)
     roles_list_visible = wait.until(EC.presence_of_element_located((By.XPATH, "/html/body/div/div[1]/main/div/p")))
     results = roles_list_visible.text
     return results
 
-def scrape_dps_aurora(driver):
+def scrape_dps_aurora(driver) -> JobList:
     wait = get_wait(driver)
-    job_tiles = wait.until(EC.presence_of_all_elements_located((By.CSS_SELECTOR, "ul span.job-tile__title")))
-    return parse_job_info(job_tiles)
+    title_locator = (By.CSS_SELECTOR, "ul span.job-tile__title")
+    jobs_tiles = wait.until(EC.presence_of_all_elements_located(title_locator))
+    # can't pull hrefs since it is so many divs up. Tried several ways.
+    return parse_job_info(jobs_tiles)
 
-def scrape_edmentum(driver):
+def scrape_edmentum(driver) -> JobList:
     return scrape_greenouse(driver)
 
-def scrape_edtechcom(driver):
+def scrape_edtechcom(driver) -> JobList:
     locator = (By.CSS_SELECTOR, "#listings a")
     wait = get_wait(driver)
     scrollToBottom()
+    time.sleep(2)
     jobs_list = wait.until(EC.presence_of_all_elements_located(locator))
     return parse_aggregator_info(jobs_list)
 
-def scrape_edtechjobsio(driver):
+def scrape_edtechjobsio(driver) -> JobList:
     url_entry_level = "https://edtechjobs.io/jobs/entry-level"
     url_curriculum = "https://edtechjobs.io/jobs/curriculum"
     url_software_search = "https://edtechjobs.io/jobs?filters%5B22579%5D=software&filters%5B22580%5D=&filters%5B22581%5D=&filters%5B22582%5D=7&filters%5B22583%5D%5Blocation%5D=&filters%5B22583%5D%5Blocation_id%5D=&filters%5B22583%5D%5Bsearch_radius%5D=&filters%5B22584%5D=1&order=relevance"
@@ -445,15 +462,14 @@ def scrape_edtechjobsio(driver):
 
     return job_listings
 
-def scrape_goguardian(driver):
+def scrape_goguardian(driver) -> JobList:
     # greenhouse
     locator = (By.CSS_SELECTOR, "tbody .cell")
     wait = get_wait(driver)
     jobs_list = wait.until(EC.presence_of_all_elements_located(locator))
-    jobs_texts = (job.text for job in jobs_list)
-    return parse_goguardian(jobs_texts)
+    return parse_job_info_with_link(jobs_list)
 
-def scrape_greatMinds(driver):
+def scrape_greatMinds(driver) -> JobList:
     list_locator = (By.XPATH, "/html/body/div/div[3]/main/div[2]/section/div[2]/div/div/div/div/div[2]/div/div/div[2]/div[2]/div/output")
     jobs_locator = (By.TAG_NAME, "tr")
     wait = get_wait(driver)
@@ -461,24 +477,23 @@ def scrape_greatMinds(driver):
     jobs_list = list.find_elements(*jobs_locator)
     return parse_greatMinds(jobs_list)
 
-def scrape_greenouse(driver):
+def scrape_greenouse(driver) -> JobList:
     locator = (By.CLASS_NAME, "job-post")
     wait = get_wait(driver)
     jobs_list = wait.until(EC.presence_of_all_elements_located(locator))
-    jobs_texts = (job.text for job in jobs_list)
-    return parse_goguardian(jobs_texts)
+    return parse_job_info_with_link(jobs_list)
 
 def scrape_guild(driver):
     # client side rendering makes this not work.
     return
 
-def scrape_imagine_learning(driver):
+def scrape_imagine_learning(driver) -> JobList:
     locator = (By.CSS_SELECTOR, ".jv-job-list li")
     wait = get_wait(driver)
     jobs_list = wait.until(EC.presence_of_all_elements_located(locator))
     return parse_imagine_learning(jobs_list)
 
-def scrape_jeffco_schools(driver):
+def scrape_jeffco_schools(driver) -> JobList:
     locator_show_all_jobs = (By.ID, "HRS_SCH_WRK$0_row_0")
     locator_search_text_box = (By.XPATH, "/html/body/form/div[2]/div[4]/div[2]/div/div/div/div/div[2]/section/div/div[1]/div/div/div/div[1]/div[1]/div/div[2]/input")
     search_terms = "Office/Tech/Support Staff"
@@ -490,22 +505,23 @@ def scrape_jeffco_schools(driver):
     type_in_element(locator_search_text_box, search_terms)
     click_element(locator_search_button, driver)
     time.sleep(1)
-    jobs_list = driver.find_elements(*locator_results_list)    
+    jobs_list = driver.find_elements(*locator_results_list)  
+    # no good way to get href from it, as it's a component update not a new url 
     return parse_jeffco(jobs_list)
 
-def scrape_khan(driver):
+def scrape_khan(driver) -> JobList:
     locator = (By.CLASS_NAME, "_12k2rikw")
     wait = get_wait(driver)
     jobs_list =  wait.until(EC.presence_of_all_elements_located(locator))
     return parse_khan_academy(jobs_list)
 
-def scrape_macmillan(driver):
+def scrape_macmillan(driver) -> JobList:
     locator = (By.CLASS_NAME, "opportunity")
     wait = get_wait(driver)
     jobs_list = wait.until(EC.presence_of_all_elements_located(locator))
     return parse_macmillan(jobs_list)
 
-def scrape_magicschool(driver):
+def scrape_magicschool(driver) -> JobList:
     wait = get_wait(driver)
     list_of_elements = wait.until(EC.presence_of_all_elements_located((By.CLASS_NAME, "ashby-job-posting-brief")))
     return parse_job_info(list_of_elements)
@@ -513,53 +529,39 @@ def scrape_magicschool(driver):
 def scrape_mapleton(driver):
     return "Nothing posted for tech jobs in order to test scraper."
 
-def scrape_masteryprep(driver):
+def scrape_masteryprep(driver) -> JobList:
     it_locator = (By.LINK_TEXT, "IT")
-    jobs_locator = (By.CSS_SELECTOR, ".whr-items li")
+    jobs_locator = (By.CSS_SELECTOR, "li.whr-item")
     wait = get_wait(driver)
     wait.until(EC.element_to_be_clickable(it_locator)).click()
     time.sleep(1)
     jobs_list = wait.until(EC.presence_of_all_elements_located(jobs_locator))
-    temp_jobs_list = []
-    for job in jobs_list:
-        # print(job.text)
-        lines = job.text.split("\n")
-        # print(lines)
-        title, location = ""
-        if len(lines) > 1:
-            title = lines[0] 
-            location = lines[1]
-            # print(title,location)
-        if len(title) != 0:
-            temp_jobs_list.append(f"{title} - {location}")
-    # jobs_title_check(temp_jobs_list)
-    # return temp_jobs_list
-    return None
+    return parse_job_info_with_link(jobs_list)
 
-def scrape_mcgraw_hill(driver):
+def scrape_mcgraw_hill(driver) -> JobList:
     locator = (By.CLASS_NAME, "mat-expansion-panel")
     wait = get_wait(driver)
     jobs_list = wait.until(EC.visibility_of_all_elements_located(locator))
     return parse_mgcraw_hill(jobs_list)
 
-def scrape_newsela(driver):
+def scrape_newsela(driver) -> JobList:
     return scrape_greenouse(driver)
 
-def scrape_noRedInk(driver):
+def scrape_noRedInk(driver) -> JobList:
     locator = (By.CSS_SELECTOR, ".opening")
     wait = get_wait(driver)
     deal_with_iframes(driver, 1)
     jobs_list = wait.until(EC.visibility_of_all_elements_located(locator))
     return parse_job_info_with_link(jobs_list)
 
-def scrape_pairin(driver):
+def scrape_pairin(driver) -> JobList:
     wait = get_wait(driver)
     element = wait.until(EC.presence_of_element_located((By.XPATH, "/html/body/div[1]/main/section/div[6]/h4")))
     list_of_elements = driver.find_element(By.XPATH, "/html/body/div[1]/main/section/div[6]/h4")
     # NEED TO ADD SCRAPER FOR WHEN THERE IS A JOB TO TEST WITH
     return list_of_elements.text
 
-def scrape_pearson(driver):
+def scrape_pearson(driver) -> JobList:
     modal_locator = (By.ID, "onetrust-accept-btn-handler")
     locator_jobs = (By.CSS_SELECTOR, "#main li")
     wait = get_wait(driver)
@@ -574,13 +576,13 @@ def scrape_powerschool(driver):
 def scrape_promethean(driver):
     return "None. tech and operations jobs are not US based."
 
-def scrape_proximity_learning(driver):
+def scrape_proximity_learning(driver) -> JobList:
     locator = (By.CLASS_NAME, "fabric-2orkpc-root")
     wait = get_wait(driver)
     jobs_list = wait.until(EC.presence_of_all_elements_located(locator))
     return parse_job_info_with_link(jobs_list)
 
-def scrape_public_schools_workday(driver):
+def scrape_public_schools_workday(driver) -> JobList:
     wait = get_wait(driver)
     job_listings = wait.until(EC.presence_of_all_elements_located((By.CSS_SELECTOR, "ul h3")))
     return parse_job_info_with_link(job_listings)
@@ -624,8 +626,7 @@ def scrape_turnitin(driver):
         jobs_list.append("None")
     return jobs_list
 
-# Todo: retry masteryprep
-# add links to the earliest ones
+# debug: pearson, savvas, newsela
 website_list = [
     # {"url": "",
     #  "name": "",
@@ -639,9 +640,9 @@ website_list = [
     # {"url": "https://scholastic.wd5.myworkdayjobs.com/External?jobFamilyGroup=b56865245e494669bad1614c8bd5e1bf&jobFamilyGroup=07ac9b2f73ee4662b9ebf744f4860a0f",
     #  "name": "Scholastic",
     #  "scraper": scrape_public_schools_workday},
-    # {"url": "https://careers.adtalem.com/jobs?options=217%2C204&page=1&size=50",
-    #  "name": "Adtalem",
-    #  "scraper": scrape_adtalem},
+    {"url": "https://careers.adtalem.com/jobs?options=217%2C204&page=1&size=50",
+     "name": "Adtalem",
+     "scraper": scrape_adtalem},
     # {"url": "https://cengage.wd5.myworkdayjobs.com/CengageNorthAmericaCareers?jobFamilyGroup=5cbb6d959a9e0174784c722a280adc5a&jobFamilyGroup=5cbb6d959a9e0169db1a6f2a280ad45a",
     #  "name": "Cengage",
     #  "scraper": scrape_public_schools_workday},
@@ -651,9 +652,9 @@ website_list = [
     # {"url": "https://collegeboard.wd1.myworkdayjobs.com/en-US/Careers?locations=5d2a8b008de5013111b33268b9008210",
     #  "name": "College Board", 
     #  "scraper": scrape_collegeboard},
-    {"url": "https://careers.smartrecruiters.com/TurnitinLLC",
-     "name": "Turnitin",
-     "scraper": scrape_turnitin},
+    # {"url": "https://careers.smartrecruiters.com/TurnitinLLC",
+    #  "name": "Turnitin",
+    #  "scraper": scrape_turnitin},
     # {"url": "https://www.timelyschools.com/careers",
     #  "name": "Timely Schools",
     #  "scraper": scrape_timely_schools},
@@ -687,7 +688,6 @@ website_list = [
     # {"url": "https://www.masteryprep.com/join-team/#Openings",
     #  "name": "MasteryPrep",
     #  "scraper": scrape_masteryprep},
-    # # NOT ACTUALLY PULLING TEXT FROM WEB ELEMENT FOR SOME REASON
     # {"url": "https://recruiting.ultipro.com/HOL1002HPHM/JobBoard/be27b89b-3cb9-491f-a1b0-42f8b077a9dd/?q=&o=postedDateDesc&w=&wc=&we=&wpst=&f4=P3uiKTJuwU-EMui9Ye7png&f5=Z6VUAqvr8UOWHe2Wz3tZ7w",
     #  "name": "Macmillan Learning",
     #  "scraper": scrape_macmillan},
@@ -768,6 +768,9 @@ chrome_options.add_argument("--disable-logging")
 chrome_options.add_argument("--disable-sync")
 chrome_options.add_argument("--disable-component-extensions-with-background-pages")
 chrome_options.add_argument("log-level=3")
+# chrome_options.add_argument("--incognito")
+# chrome_options.headless = True
+# chrome_options.add_argument("--window-size=1920,1200")
 driver = webdriver.Chrome(options=chrome_options)
 
 # driver = webdriver.Chrome()
